@@ -1,17 +1,12 @@
+"""Tests for AoC 1, 2022: Calorie Counting."""
+
 import torch
 from torch.utils.data import DataLoader
-from pinn_utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0, create_plane_wave
+from utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0, create_plane_wave
 import matplotlib.pyplot as plt
 import numpy as np
 
-"""
-Tests to write:
-Scattered field is zero when there is no scatterer
-Scattered field is nonzero when there is a scatterer and the incident field is nonzero
-Scattered field is zero when there is a scatterer and the incident field is zero
-Scattered field matches analytic solution for simple geometries
-Distributed code matches results of non-distributed code
-"""
+
 
 # units are microns
 

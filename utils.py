@@ -1,3 +1,5 @@
+"""Tests for AoC 1, 2022: Calorie Counting."""
+
 import numpy as np
 import torch
 from torch import nn

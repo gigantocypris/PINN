@@ -4,8 +4,17 @@
 import pathlib
 
 # Third party imports
-import aoc202201
 import pytest
+
+
+"""
+Tests to write:
+Scattered field is zero when there is no scatterer
+Scattered field is nonzero when there is a scatterer and the incident field is nonzero
+Scattered field is zero when there is a scatterer and the incident field is zero
+Scattered field matches analytic solution for simple geometries
+Distributed code matches results of non-distributed code
+"""
 
 PUZZLE_DIR = pathlib.Path(__file__).parent
 
