@@ -1,4 +1,4 @@
-"""Tests for AoC 1, 2022: Calorie Counting."""
+"""Tests for PINN"""
 
 # Standard library imports
 import pathlib
