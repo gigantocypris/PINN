@@ -1,5 +1,3 @@
-"""Tests for AoC 1, 2022: Calorie Counting."""
-
 import torch
 from torch.utils.data import DataLoader
 from utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0, create_plane_wave
