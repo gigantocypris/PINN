@@ -130,7 +130,7 @@ def get_pde_loss(data,
 
 
     if use_pde_cl:
-        w = torch.linalg.lstsq(linear_pde, f, driver='gelsd').solution
+        w = torch.linalg.lstsq(linear_pde, f, driver='gels').solution
         linear_pde_combine = torch.matmul(linear_pde,w)
         u_scatter_complex_combine = torch.matmul(u_scatter_complex,w)
         u_scatter_complex_combine = torch.squeeze(u_scatter_complex_combine, dim=1)
