@@ -41,8 +41,8 @@ device = torch.device("cuda"
                       else "cpu")
 
 # override
-if use_cpu:
-    device = torch.device("cpu")
+#if use_cpu:
+#    device = torch.device("cpu")
 
 print(f"Using {device} device")
 
