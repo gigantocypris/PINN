@@ -1,9 +1,24 @@
+<br/>
+<p align="center"><img src="images/logo.png" width=500 /></p>
+
+----
+![Crates.io](https://img.shields.io/crates/l/Ap?color=black)
+
 # PINN
 
 References:
 
 Learning differentiable solvers for systems with hard constraints
 https://arxiv.org/abs/2207.08675
+
+## Setup on MacBook Pro
+
+Prerequisite: install miniconda or Anaconda (https://docs.conda.io/projects/conda/en/latest/user-guide/install/macos.html)
+
+Open the Terminal:
+conda create -n PINN python=3.8 -y
+conda activate PINN
+
 
 ## Setup on NERSC
 
