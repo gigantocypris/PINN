@@ -1,0 +1,13 @@
+scipy
+pandas
+matplotlib
+pytest
+pillow
+tensorboard
+tensorboardX
+tfrecord
+dxchange
+six
+tifffile
+scikit-learn
+scikit-optimize
