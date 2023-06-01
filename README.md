@@ -77,18 +77,18 @@ Install the other pip dependencies:
 python -m pip install -r requirements.txt
 ```
 
-### To use the conda environment on NERSC:
+### How to run the code on NERSC
 
 Open a Perlmutter terminal.
-Run the following commands.
+Run the following commands to use the conda environment.
 ```
 module load python
 conda activate PINN
 ```
 
-### How to run the code
-
+Navigate to the directory and run the code:
 ```
+cd $SCRATCH/PINN
 python main.py
 ```
 

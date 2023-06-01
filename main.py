@@ -133,6 +133,9 @@ with torch.no_grad():
 
 print(f"Final eval pde loss is {pde_loss/len(eval_data)}")
 
+eval_data = eval_data.cpu().numpy()
+u_total = u_total.cpu().numpy()
+u_in = u_in.cpu().numpy()
 
 # Plot results
 plt.figure()
