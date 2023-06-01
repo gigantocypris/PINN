@@ -26,7 +26,7 @@ python -m pip install scipy
 conda deactivate
 ```
 
-### To use the conda environment:
+To use the conda environment:
 ```
 conda activate pytorch2
 ```
@@ -77,13 +77,14 @@ Install the other pip dependencies:
 python -m pip install -r requirements.txt
 ```
 
-### How to run the code on NERSC
+## How to run the code on NERSC
 
 Open a Perlmutter terminal.
-Run the following commands to use the conda environment.
+Run the following commands to use the conda environment and start an interactive session:
 ```
 module load python
 conda activate PINN
+salloc -N 1 --time=60 -C gpu -A m3562_g --qos=interactive --ntasks-per-gpu=8 --cpus-per-task=4
 ```
 
 Navigate to the directory and run the code:

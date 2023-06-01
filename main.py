@@ -13,8 +13,8 @@ num_basis = 200 # number of basis functions, N in pde-cl paper
 use_pde_cl = True
 wavelength = 2.1 # um
 n_background = 1
-use_cpu = True
-epochs = 2
+use_cpu = False
+epochs = 1000
 
 training_data_x_start = [-2,-2,0]
 training_data_x_end = [2,2,0.5]
@@ -27,9 +27,9 @@ test_data_x_end = [2,2,0.5]
 test_data_x_step = [0.5,0.5,0.5]
 
 # this ensures that the current MacOS version is at least 12.3+
-print(torch.backends.mps.is_available())
+print("Using Apple Silicon GPU? " + str(torch.backends.mps.is_available()))
 # this ensures that the current current PyTorch installation was built with MPS activated.
-print(torch.backends.mps.is_built())
+print("PyTorch install with Apple Silicon GPU support? " + str(torch.backends.mps.is_built()))
 
 dtype = torch.float
 
@@ -41,8 +41,8 @@ device = torch.device("cuda"
                       else "cpu")
 
 # override
-#if use_cpu:
-#    device = torch.device("cpu")
+if use_cpu:
+    device = torch.device("cpu")
 
 print(f"Using {device} device")
 
