@@ -86,6 +86,12 @@ module load python
 conda activate PINN
 ```
 
+### How to run the code
+
+```
+python main.py
+```
+
 ## Resources
 
 Learning differentiable solvers for systems with hard constraints
