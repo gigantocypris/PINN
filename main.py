@@ -13,7 +13,7 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 2.1 # um
 n_background = 1
 use_cpu = False
-epochs = 10
+epochs = 100
 
 # set the training region
 training_data_x_start = [-2,-2,-2]
