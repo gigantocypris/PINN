@@ -4,31 +4,31 @@ from utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0,
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-
 # units are microns
 
+# set parameters
 batch_size = 100
 num_basis = 200 # number of basis functions, N in pde-cl paper
-use_pde_cl = True
+use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 2.1 # um
 n_background = 1
 use_cpu = False
 epochs = 1000
 
-training_data_x_start = [-2,-2,0]
-training_data_x_end = [2,2,0.5]
-training_data_x_step = [0.1,0.1,0.5]
+# set the training region
+training_data_x_start = [-2,-2,-2]
+training_data_x_end = [2,2,2]
+training_data_x_step = [0.1,0.1,0.1]
 
-offset_2 = 0.05
-
-test_data_x_start = [-2,-2,0]
-test_data_x_end = [2,2,0.5]
+# set the test region
+offset = 0.05
+test_data_x_start = [-2,-2,-2]
+test_data_x_end = [2,2,2]
 test_data_x_step = [0.5,0.5,0.5]
 
-# this ensures that the current MacOS version is at least 12.3+
+# this ensures that if using Apple Silicon GPU, MPS is activated.
 print("Using Apple Silicon GPU? " + str(torch.backends.mps.is_available()))
-# this ensures that the current current PyTorch installation was built with MPS activated.
+# this ensures that the current current PyTorch installation was built with MPS activated if using Mac
 print("PyTorch install with Apple Silicon GPU support? " + str(torch.backends.mps.is_built()))
 
 dtype = torch.float
@@ -47,14 +47,18 @@ if use_cpu:
 print(f"Using {device} device")
 
 # Training data to compute weights w
+# Training data is a list of coordinates
 training_data = create_data(training_data_x_start, training_data_x_end, training_data_x_step, device)
 
-
 # Training data to compute pde loss
+# Training data is a list of coordinates
+# This is only used if the linear system is underdetermined
 if batch_size<num_basis:
-    training_data_2 = create_data(np.array(training_data_x_start)+offset_2, 
-                                np.array(training_data_x_end)+offset_2, training_data_x_step, device)
+    training_data_2 = create_data(np.array(training_data_x_start)+offset, 
+                                np.array(training_data_x_end)+offset, training_data_x_step, device)
 
+# Test data for validation of pde loss
+# Test data is a list of coordinates
 test_data = create_data(test_data_x_start, test_data_x_end, test_data_x_step, device)
 
 # Force num_basis = 1 if not using pde-cl
@@ -72,10 +76,9 @@ test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 model = NeuralNetwork(num_basis).to(device)
 print(model)
 
-
 optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 
-
+# PDE loss function
 def loss_fn(data, u_scatter, data_2): 
     return get_pde_loss(data, 
                         wavelength,
@@ -87,6 +90,7 @@ def loss_fn(data, u_scatter, data_2):
                         data_2=data_2,
                         ) 
 
+# Train the PINN
 test_loss_vec = []
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
@@ -99,22 +103,21 @@ for t in range(epochs):
 print("Done!")
 
 # Save model
-
 torch.save(model.state_dict(), "model.pth")
 print("Saved PyTorch Model State to model.pth")
 
 # Load model
-
 model = NeuralNetwork(num_basis).to(device)
 model.load_state_dict(torch.load("model.pth"))
 
 
 # Use loaded model to make predictions
-
 model.eval()
 
-# eval_data = create_data(training_data_x_start, training_data_x_end, training_data_x_step, device)
-eval_data = create_data([-2,-2,0], [2,2,0.5], [0.1,0.1,0.5], device)
+# Visualize the PINN with list of coordinates
+offset_eval = 0.03
+eval_data = create_data(training_data_x_start+offset_eval, training_data_x_end+offset_eval, training_data_x_step, device)
+
 
 with torch.no_grad():
     k0 = get_k0(wavelength)

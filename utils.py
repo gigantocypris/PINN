@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 def create_data(min_vals, max_vals, spacings, device):
+    """Create a list of coordinates from a grid"""
     data_x = torch.arange(min_vals[0],max_vals[0],spacings[0],device=device)
     data_y = torch.arange(min_vals[1],max_vals[1],spacings[1],device=device)
     data_z = torch.arange(min_vals[2],max_vals[2],spacings[2],device=device)
@@ -28,7 +29,7 @@ class NeuralNetwork(nn.Module):
 
     def forward(self, x):
         u_scatter = self.linear_relu_stack(x)
-        u_scatter = torch.reshape(u_scatter, (-1,self.num_basis,2))
+        u_scatter = torch.reshape(u_scatter, (-1,self.num_basis,2)) # last dimension is the real and imaginary parts
         return u_scatter
 
 def evalulate_refractive_index(data,
@@ -37,8 +38,11 @@ def evalulate_refractive_index(data,
                               ):
     return torch.where(torch.sum(data**2,dim=1)<radius**2, 1.3, n_background)
 
+
 def get_k0(wavelength):
+    """get free space wavenumber"""
     return 2*np.pi/wavelength
+
 
 def create_plane_wave(data, 
                       wavelength,
@@ -48,6 +52,7 @@ def create_plane_wave(data,
                       tilt_theta=np.pi/2, # radians, angle from the xy plane, np.pi/2 is in the z-direction
                       tilt_phi=0, # radians, angle in the xy plane
                      ):
+    """create free space plane wave u_in"""
     """z is the direction of propagation"""
     """x into the page, y up, z to the right"""
     k0 = get_k0(wavelength)
@@ -66,8 +71,8 @@ def transform_linear_pde(data,
                          model,
                          device,
                         ):
-
-    hess = torch.vmap(torch.func.hessian(model, argnums=0),in_dims=(0))(data)
+    '''Get the right hand side of the PDE (del**2 + n**2*k0**2)*u_scatter = -(n**2-n_background**2)*k0**2*u_in))'''
+    hess = torch.vmap(torch.func.hessian(model, argnums=0),in_dims=(0))(data) # hessian
     refractive_index = evalulate_refractive_index(data, n_background) 
     
     du_scatter_xx = torch.squeeze(hess[:,:,:,:,0,0], dim=1)
@@ -90,7 +95,9 @@ def transform_affine_pde(wavelength,
                          model,
                          device,
                          ):
-    
+    '''Get the right and left hand side of the PDE (del**2 + n**2*k0**2)*u_scatter = -(n**2-n_background**2)*k0**2*u_in))'''
+
+    # get the right hand side of the PDE
     linear_pde, refractive_index, u_scatter_complex = transform_linear_pde(data,
                                                                            k0,
                                                                            n_background,
@@ -102,8 +109,10 @@ def transform_affine_pde(wavelength,
                              wavelength,
                              n_background,
                              device)
-    f = k0**2*(refractive_index**2 - n_background**2)*u_in
-    f=torch.unsqueeze(f,dim=1)
+    
+    # get the left hand side of the PDE
+    f = -k0**2*(refractive_index**2 - n_background**2)*u_in
+    f = torch.unsqueeze(f,dim=1)
     return linear_pde, f, u_scatter_complex, u_in
 
 def get_pde_loss(data, 
@@ -142,6 +151,7 @@ def get_pde_loss(data,
     # combine the scattered field with the incident field
     u_total = u_scatter_complex_combine+u_in
 
+    # if underdetermined, use the second dataset to get the loss
     if data_2 is not None:
         linear_pde, f, _, _ = \
         transform_affine_pde(wavelength,
@@ -166,7 +176,7 @@ def train(dataloader,
           optimizer,
           device,
           ):
-    
+    """Train the model for one epoch"""
     if dataloader_2 is not None:
         dataloader_2_iter = iter(dataloader_2)
     size = len(dataloader.dataset)
