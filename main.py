@@ -13,7 +13,7 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 2.1 # um
 n_background = 1
 use_cpu = False
-epochs = 10
+epochs = 2
 
 # set the training region
 training_data_x_start = [-2,-2,-2]
@@ -116,8 +116,9 @@ model.eval()
 
 # Visualize the PINN with list of coordinates
 offset_eval = 0.03
-eval_data = create_data(training_data_x_start+offset_eval, training_data_x_end+offset_eval, training_data_x_step, device)
 
+eval_data = create_data(np.array(training_data_x_start)+offset_eval, 
+                        np.array(training_data_x_end)+offset_eval, training_data_x_step, device)
 
 with torch.no_grad():
     k0 = get_k0(wavelength)
