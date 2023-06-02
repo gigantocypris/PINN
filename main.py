@@ -117,8 +117,11 @@ model.eval()
 # Visualize the PINN with list of coordinates
 offset_eval = 0.03
 
-eval_data = create_data(np.array(training_data_x_start)+offset_eval, 
-                        np.array(training_data_x_end)+offset_eval, training_data_x_step, device)
+eval_data_x_start = [-2,-2,0]
+eval_data_x_end = [2,2,0.1]
+eval_data_x_step = [0.1,0.1,0.1]
+eval_data = create_data(np.array(eval_data_x_start)+offset_eval, 
+                        np.array(eval_data_x_end)+offset_eval, eval_data_x_step, device)
 
 with torch.no_grad():
     k0 = get_k0(wavelength)
