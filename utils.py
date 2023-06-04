@@ -7,9 +7,11 @@ from torch import nn
 def create_data(min_vals, max_vals, spacings, device, two_d):
     """Create a list of coordinates from a grid"""
     data = []
+    lengths = []
     for i in range(len(spacings)):
         data_i = torch.arange(min_vals[i],max_vals[i],spacings[i],device=device)
         data.append(data_i)
+        lengths.append(len(data_i))
     if two_d:
         data_xm, data_ym = torch.meshgrid(data[0], data[1], indexing='ij')
         data = torch.stack((data_xm, data_ym), dim=2)
@@ -18,7 +20,7 @@ def create_data(min_vals, max_vals, spacings, device, two_d):
         data_xm, data_ym, data_zm = torch.meshgrid(data[0], data[1], data[2], indexing='ij')
         data = torch.stack((data_xm, data_ym, data_zm), dim=3)
         data = torch.reshape(data, (-1,3))
-    return data
+    return data, lengths
 
 class NeuralNetwork(nn.Module):
     def __init__(self, num_basis, two_d):

@@ -14,14 +14,15 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
 use_cpu = False
-epochs = 2
+epochs = 0
 two_d = True
 
 # set the training region
 if two_d:
     training_data_x_start = [-14,-14]
     training_data_x_end = [14,14]
-    training_data_x_step = [0.03,0.03]
+    training_data_x_step = [0.1,0.1]
+    # training_data_x_step = [0.03,0.03]
 else:
     training_data_x_start = [-2,-2,-2]
     training_data_x_end = [2,2,2]
@@ -62,18 +63,18 @@ print(f"Using {device} device")
 
 # Training data to compute weights w
 # Training data is a list of coordinates
-training_data = create_data(training_data_x_start, training_data_x_end, training_data_x_step, device, two_d)
+training_data, _ = create_data(training_data_x_start, training_data_x_end, training_data_x_step, device, two_d)
 
 # Training data to compute pde loss
 # Training data is a list of coordinates
 # This is only used if the linear system is underdetermined
 if batch_size<num_basis:
-    training_data_2 = create_data(np.array(training_data_x_start)+offset, 
-                                np.array(training_data_x_end)+offset, training_data_x_step, device, two_d)
+    training_data_2, _ = create_data(np.array(training_data_x_start)+offset, 
+                                     np.array(training_data_x_end)+offset, training_data_x_step, device, two_d)
 
 # Test data for validation of pde loss
 # Test data is a list of coordinates
-test_data = create_data(test_data_x_start, test_data_x_end, test_data_x_step, device, two_d)
+test_data, _ = create_data(test_data_x_start, test_data_x_end, test_data_x_step, device, two_d)
 
 # Force num_basis = 1 if not using pde-cl
 if not(use_pde_cl):
@@ -144,38 +145,49 @@ model.load_state_dict(torch.load("model.pth"))
 model.eval()
 
 # Visualize the PINN with list of coordinates
-offset_eval = 0.03
+eval_data_x_start = training_data_x_start
+eval_data_x_end = training_data_x_end
+if two_d:
+    eval_data_x_step = [0.03,0.03]
+else:
+    eval_data_x_step = [0.1,0.1,0.1]
 
-eval_data = create_data(np.array(training_data_x_start)+offset_eval, 
-                        np.array(training_data_x_end)+offset_eval, training_data_x_step, device, two_d)
+eval_data, lengths = create_data(eval_data_x_start, eval_data_x_end, eval_data_x_step, device, two_d)
+eval_dataloader = DataLoader(eval_data, batch_size=batch_size, shuffle=False)
+u_total_all = []
+u_in_all = []
+pde_loss = []
 
 with torch.no_grad():
     k0 = get_k0(wavelength)
-    if two_d:
-        u_in = create_plane_wave_2d(eval_data, 
-                                wavelength,
-                                n_background,
-                                device,
-                                )
-    else:
-        u_in = create_plane_wave_3d(eval_data, 
-                                wavelength,
-                                n_background,
-                                device,
-                                )
-    
-    u_scatter_test = model(eval_data)
-    
-    pde_loss, u_total, u_scatter = loss_fn(eval_data, 
-                                           u_scatter_test,
-                                           data_2=None,
-                                          )
+    for eval_data_i in eval_dataloader:
+        if two_d:
+            u_in = create_plane_wave_2d(eval_data_i, 
+                                        wavelength,
+                                        n_background,
+                                        device,
+                                       )
+        else:
+            u_in = create_plane_wave_3d(eval_data_i, 
+                                        wavelength,
+                                        n_background,
+                                        device,
+                                       )
+        
+        u_scatter_test = model(eval_data_i)
+        
+        pde_loss_i, u_total, u_scatter = loss_fn(eval_data_i, 
+                                                 u_scatter_test,
+                                                 data_2=None,
+                                                )
+        pde_loss.append(pde_loss_i)
 
-print(f"Final eval pde loss is {pde_loss/len(eval_data)}")
+        u_total_all.append(u_total.cpu().numpy())
+        u_in_all.append(u_in.cpu().numpy())
+
+print(f"Final eval pde loss is {np.sum(pde_loss)/len(eval_data)}")
 
 eval_data = eval_data.cpu().numpy()
-u_total = u_total.cpu().numpy()
-u_in = u_in.cpu().numpy()
 
 # Plot results
 plt.figure()
