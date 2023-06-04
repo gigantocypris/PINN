@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0, create_plane_wave_2d, create_plane_wave_3d
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 # units are microns
 
@@ -13,7 +14,7 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
 use_cpu = False
-epochs = 10
+epochs = 2
 two_d = True
 
 # set the training region
@@ -86,7 +87,16 @@ if batch_size<num_basis:
 test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
 
-model = NeuralNetwork(num_basis, two_d).to(device)
+model = NeuralNetwork(num_basis, two_d)
+
+if torch.cuda.device_count() > 1:
+  print("Let's use", torch.cuda.device_count(), "GPUs!")
+  # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+  model = torch.nn.DataParallel(model)
+
+model.to(device)
+
+                        
 print(model)
 
 optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
@@ -106,6 +116,7 @@ def loss_fn(data, u_scatter, data_2):
 
 # Train the PINN
 test_loss_vec = []
+start = time.time()
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     if batch_size>num_basis:
@@ -115,6 +126,8 @@ for t in range(epochs):
     test_loss = test(test_dataloader, model, loss_fn, device)
     test_loss_vec.append(test_loss)
 print("Done!")
+end = time.time()
+print("Time to train (s): " + str(start-end))
 
 # Save model
 torch.save(model.state_dict(), "model.pth")
