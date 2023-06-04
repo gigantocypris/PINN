@@ -16,7 +16,7 @@ n_background = 1.33
 use_cpu = False
 epochs = 10 # if epochs=0, then load model from model.pth
 two_d = True
-learning_rate = 1e-3
+learning_rate = 1e-4
 
 # set the training region
 if two_d:
