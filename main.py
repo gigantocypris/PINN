@@ -61,7 +61,7 @@ print(f"Using {device} device")
 
 # Training data to compute weights w
 # Training data is a list of coordinates
-training_data = create_data(training_data_x_start, training_data_x_end, training_data_x_step, device)
+training_data = create_data(training_data_x_start, training_data_x_end, training_data_x_step, device, two_d)
 
 breakpoint()
 
@@ -70,11 +70,11 @@ breakpoint()
 # This is only used if the linear system is underdetermined
 if batch_size<num_basis:
     training_data_2 = create_data(np.array(training_data_x_start)+offset, 
-                                np.array(training_data_x_end)+offset, training_data_x_step, device)
+                                np.array(training_data_x_end)+offset, training_data_x_step, device, two_d)
 
 # Test data for validation of pde loss
 # Test data is a list of coordinates
-test_data = create_data(test_data_x_start, test_data_x_end, test_data_x_step, device)
+test_data = create_data(test_data_x_start, test_data_x_end, test_data_x_step, device, two_d)
 
 # Force num_basis = 1 if not using pde-cl
 if not(use_pde_cl):
@@ -134,7 +134,7 @@ model.eval()
 offset_eval = 0.03
 
 eval_data = create_data(np.array(training_data_x_start)+offset_eval, 
-                        np.array(training_data_x_end)+offset_eval, training_data_x_step, device)
+                        np.array(training_data_x_end)+offset_eval, training_data_x_step, device, two_d)
 
 with torch.no_grad():
     k0 = get_k0(wavelength)
