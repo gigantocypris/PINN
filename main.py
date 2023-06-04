@@ -240,6 +240,13 @@ plt.savefig("u_total_magnitude.png")
 plt.show()
 
 plt.figure()
+plt.title('Log Magnitude of Total Field')
+sc = plt.imshow(np.log(np.abs(u_total_all)))
+plt.colorbar(sc)
+plt.savefig("u_total_log_magnitude.png")
+plt.show()
+
+plt.figure()
 plt.title('Phase of Total Field')
 sc = plt.imshow(np.angle(u_total_all))
 plt.colorbar(sc)
