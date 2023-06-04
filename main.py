@@ -188,7 +188,7 @@ with torch.no_grad():
         u_total_all = np.concatenate((u_total_all,u_total.cpu().numpy()), axis=0)
         u_in_all = np.concatenate((u_in_all, u_in.cpu().numpy()), axis=0)
         total_examples_finished += len(eval_data_i)
-        print(f"loss: {pde_loss/len(eval_data_i):>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
+        print(f"loss: {pde_loss_i/len(eval_data_i):>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
 
 print(f"Final eval pde loss is {np.sum(pde_loss)/len(eval_data)}")
 
