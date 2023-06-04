@@ -8,14 +8,15 @@ import time
 # units are microns
 
 # set parameters
-batch_size = 800
-num_basis = 400 # number of basis functions, N in pde-cl paper
+batch_size = 400
+num_basis = 200 # number of basis functions, N in pde-cl paper
 use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
 use_cpu = False
 epochs = 1 # if epochs=0, then load model from model.pth
 two_d = True
+learning_rate = 1e-3
 
 # set the training region
 if two_d:
@@ -101,7 +102,7 @@ model.to(device)
                         
 print(model)
 
-optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
 # PDE loss function
 def loss_fn(data, u_scatter, data_2): 
