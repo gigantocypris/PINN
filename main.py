@@ -155,8 +155,8 @@ else:
 
 eval_data, lengths = create_data(eval_data_x_start, eval_data_x_end, eval_data_x_step, device, two_d)
 eval_dataloader = DataLoader(eval_data, batch_size=batch_size, shuffle=False)
-u_total_all = []
-u_in_all = []
+u_total_all = np.array([])
+u_in_all = np.array([])
 pde_loss = []
 
 with torch.no_grad():
@@ -183,12 +183,14 @@ with torch.no_grad():
                                                 )
         pde_loss.append(pde_loss_i.cpu().numpy())
 
-        u_total_all.append(u_total.cpu().numpy())
-        u_in_all.append(u_in.cpu().numpy())
+        u_total_all.concatenate(u_total.cpu().numpy())
+        u_in_all.concatenate(u_in.cpu().numpy())
 
 print(f"Final eval pde loss is {np.sum(pde_loss)/len(eval_data)}")
 
 eval_data = eval_data.cpu().numpy()
+
+breakpoint()
 
 # Plot results
 plt.figure()
