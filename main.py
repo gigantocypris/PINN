@@ -8,8 +8,8 @@ import time
 # units are microns
 
 # set parameters
-batch_size = 400
-num_basis = 200 # number of basis functions, N in pde-cl paper
+batch_size = 800
+num_basis = 400 # number of basis functions, N in pde-cl paper
 use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
