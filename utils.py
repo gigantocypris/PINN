@@ -234,7 +234,6 @@ def train(dataloader,
         data = data.to(device)
         # Compute prediction error
         u_scatter = model(data)
-        breakpoint()
         pde_loss, _, _ = loss_fn(data, 
                                  u_scatter,
                                  data_2,
