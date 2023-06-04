@@ -89,7 +89,7 @@ if batch_size<num_basis:
 test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
 
-model = NeuralNetwork(num_basis).to(device)
+model = NeuralNetwork(num_basis, two_d).to(device)
 print(model)
 
 optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
