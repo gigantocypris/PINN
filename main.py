@@ -28,8 +28,8 @@ else:
 
 # set the test region
 if two_d:
-    training_data_x_start = [-14,-14]
-    training_data_x_end = [14,14]
+    test_data_x_start = [-14,-14]
+    test_data_x_end = [14,14]
     test_data_x_step = [0.5,0.5]
 else:
     test_data_x_start = [-2,-2,-2]
