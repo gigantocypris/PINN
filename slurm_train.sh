@@ -1,6 +1,5 @@
 #!/bin/bash
 
-#SBATCH -N 0.25          # Number of nodes
 #SBATCH -J PINN          # job name
 #SBATCH -L SCRATCH       # job requires SCRATCH files
 #SBATCH -A m2859_g       # allocation
