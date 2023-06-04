@@ -204,6 +204,7 @@ def get_pde_loss(data,
                             u_scatter,
                             model,
                             device,
+                            two_d,
                             )
         linear_pde_combine = torch.matmul(linear_pde,w)
 
