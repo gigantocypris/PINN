@@ -64,8 +64,6 @@ print(f"Using {device} device")
 # Training data is a list of coordinates
 training_data = create_data(training_data_x_start, training_data_x_end, training_data_x_step, device, two_d)
 
-breakpoint()
-
 # Training data to compute pde loss
 # Training data is a list of coordinates
 # This is only used if the linear system is underdetermined
