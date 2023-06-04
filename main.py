@@ -14,17 +14,30 @@ wavelength = 2.1 # um
 n_background = 1
 use_cpu = False
 epochs = 100
+two_d = True
 
 # set the training region
-training_data_x_start = [-2,-2,-2]
-training_data_x_end = [2,2,2]
-training_data_x_step = [0.1,0.1,0.1]
+if two_d:
+    training_data_x_start = [-2,-2]
+    training_data_x_end = [2,2]
+    training_data_x_step = [0.1,0.1]
+else:
+    training_data_x_start = [-2,-2,-2]
+    training_data_x_end = [2,2,2]
+    training_data_x_step = [0.1,0.1,0.1]
 
 # set the test region
+if two_d:
+    test_data_x_start = [-2,-2]
+    test_data_x_end = [2,2]
+    test_data_x_step = [0.5,0.5]
+else:
+    test_data_x_start = [-2,-2,-2]
+    test_data_x_end = [2,2,2]
+    test_data_x_step = [0.5,0.5,0.5]
+
+# offset if using underdetermined linear system
 offset = 0.05
-test_data_x_start = [-2,-2,-2]
-test_data_x_end = [2,2,2]
-test_data_x_step = [0.5,0.5,0.5]
 
 # this ensures that if using Apple Silicon GPU, MPS is activated.
 print("Using Apple Silicon GPU? " + str(torch.backends.mps.is_available()))
@@ -49,6 +62,8 @@ print(f"Using {device} device")
 # Training data to compute weights w
 # Training data is a list of coordinates
 training_data = create_data(training_data_x_start, training_data_x_end, training_data_x_step, device)
+
+breakpoint()
 
 # Training data to compute pde loss
 # Training data is a list of coordinates

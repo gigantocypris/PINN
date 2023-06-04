@@ -4,14 +4,20 @@ import numpy as np
 import torch
 from torch import nn
 
-def create_data(min_vals, max_vals, spacings, device):
+def create_data(min_vals, max_vals, spacings, device, two_d):
     """Create a list of coordinates from a grid"""
-    data_x = torch.arange(min_vals[0],max_vals[0],spacings[0],device=device)
-    data_y = torch.arange(min_vals[1],max_vals[1],spacings[1],device=device)
-    data_z = torch.arange(min_vals[2],max_vals[2],spacings[2],device=device)
-    data_xm, data_ym, data_zm = torch.meshgrid(data_x, data_y, data_z, indexing='ij')
-    data = torch.stack((data_xm, data_ym, data_zm), dim=3)
-    data = torch.reshape(data, (-1,3))
+    data = []
+    for i in range(len(spacings)):
+        data_i = torch.arange(min_vals[i],max_vals[i],spacings[i],device=device)
+        data.append(data_i)
+    if two_d:
+        data_xm, data_ym = torch.meshgrid(data[0], data[1], indexing='ij')
+        data = torch.stack((data_xm, data_ym), dim=2)
+        data = torch.reshape(data, (-1,2))
+    else:
+        data_xm, data_ym, data_zm = torch.meshgrid(data[0], data[1], data[2], indexing='ij')
+        data = torch.stack((data_xm, data_ym, data_zm), dim=3)
+        data = torch.reshape(data, (-1,3))
     return data
 
 class NeuralNetwork(nn.Module):
