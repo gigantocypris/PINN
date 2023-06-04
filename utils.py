@@ -137,7 +137,6 @@ def transform_affine_pde(wavelength,
                                                                            n_background,
                                                                            u_scatter,
                                                                            model,
-                                                                           device,
                                                                            two_d,
                                                                           )
     if two_d:
