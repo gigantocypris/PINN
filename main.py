@@ -89,10 +89,12 @@ test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
 model = NeuralNetwork(num_basis, two_d)
 
+"""
 if torch.cuda.device_count() > 1:
   print("Let's use", torch.cuda.device_count(), "GPUs!")
   # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
   model = torch.nn.DataParallel(model)
+"""
 
 model.to(device)
 
