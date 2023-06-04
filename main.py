@@ -14,15 +14,15 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
 use_cpu = False
-epochs = 10 # if epochs=0, then load model from model.pth
+epochs = 1 # if epochs=0, then load model from model.pth
 two_d = True
 
 # set the training region
 if two_d:
     training_data_x_start = [-14,-14]
     training_data_x_end = [14,14]
-    training_data_x_step = [0.1,0.1]
-    # training_data_x_step = [0.03,0.03]
+    # training_data_x_step = [0.1,0.1]
+    training_data_x_step = [0.03,0.03]
 else:
     training_data_x_start = [-2,-2,-2]
     training_data_x_end = [2,2,2]
@@ -127,14 +127,12 @@ for t in range(epochs):
         train(train_dataloader, train_dataloader_2, model, loss_fn, optimizer, device)
     test_loss = test(test_dataloader, model, loss_fn, device)
     test_loss_vec.append(test_loss)
+    torch.save(model.state_dict(), "model.pth") # save model
+    print("Saved PyTorch Model State to model.pth")
 print("Done!")
 end = time.time()
 print("Time to train (s): " + str(start-end))
 
-# Save model
-if epochs>0:
-    torch.save(model.state_dict(), "model.pth")
-    print("Saved PyTorch Model State to model.pth")
 
 # Load model
 if epochs==0:
