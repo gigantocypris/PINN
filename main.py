@@ -14,7 +14,7 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
 use_cpu = False
-epochs = 1
+epochs = 0
 two_d = True
 
 # set the training region
@@ -183,8 +183,8 @@ with torch.no_grad():
                                                 )
         pde_loss.append(pde_loss_i.cpu().numpy())
 
-        u_total_all.concatenate(u_total.cpu().numpy())
-        u_in_all.concatenate(u_in.cpu().numpy())
+        u_total_all = np.concatenate((u_total_all,u_total.cpu().numpy()), axis=0)
+        u_in_all = np.concatenate((u_in_all, u_in.cpu().numpy()), axis=0)
 
 print(f"Final eval pde loss is {np.sum(pde_loss)/len(eval_data)}")
 
