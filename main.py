@@ -198,13 +198,13 @@ breakpoint()
 
 # reshape the output matrices
 if two_d:
-    eval_data = eval_data.reshape((lengths[0]*lengths[1],2)) # use as a check
-    u_total_all = u_total_all.reshape((lengths[0],lengths[1]))
-    u_in_all = u_in_all.reshape((lengths[0],lengths[1]))
+    eval_data = np.reshape(eval_data, [lengths[0]*lengths[1],2]) # use as a check
+    u_total_all = np.reshape(u_total_all, [lengths[0],lengths[1]])
+    u_in_all = np.reshape(u_in_all, [lengths[0],lengths[1]])
 else:  
-    eval_data = eval_data.reshape((lengths[0]*lengths[1],3)) # use as a check
-    u_total_all = u_total_all.reshape((lengths[0],lengths[1],lengths[2]))
-    u_in_all = u_in_all.reshape((lengths[0],lengths[1],lengths[2]))
+    eval_data = np.reshape(eval_data, [lengths[0]*lengths[1],3]) # use as a check
+    u_total_all = np.reshape(u_total_all, [lengths[0],lengths[1],lengths[2]])
+    u_in_all = np.reshape(u_in_all, [lengths[0],lengths[1],lengths[2]])
 
 np.save("u_total_all.npy", u_total_all)
 np.save("u_in_all.npy", u_in_all)
