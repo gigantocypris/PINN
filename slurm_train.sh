@@ -11,7 +11,6 @@
 #SBATCH -o %j.out
 #SBATCH -e %j.err
 
-mkdir -p $SCRATCH/output_PINN
 export SCRATCH_FOLDER=$SCRATCH/output_PINN/$SLURM_JOB_ID
 mkdir -p $SCRATCH_FOLDER; cd $SCRATCH_FOLDER
 
