@@ -14,7 +14,7 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
 use_cpu = False
-epochs = 0
+epochs = 1
 two_d = True
 
 # set the training region
@@ -133,8 +133,9 @@ end = time.time()
 print("Time to train (s): " + str(start-end))
 
 # Save model
-torch.save(model.state_dict(), "model.pth")
-print("Saved PyTorch Model State to model.pth")
+if epochs>0:
+    torch.save(model.state_dict(), "model.pth")
+    print("Saved PyTorch Model State to model.pth")
 
 # Load model
 model = NeuralNetwork(num_basis, two_d).to(device)
@@ -180,7 +181,7 @@ with torch.no_grad():
                                                  u_scatter_test,
                                                  data_2=None,
                                                 )
-        pde_loss.append(pde_loss_i)
+        pde_loss.append(pde_loss_i.cpu().numpy())
 
         u_total_all.append(u_total.cpu().numpy())
         u_in_all.append(u_in.cpu().numpy())
