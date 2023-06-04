@@ -14,7 +14,7 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
 use_cpu = False
-epochs = 0
+epochs = 0 # if epochs=0, then load model from model.pth
 two_d = True
 
 # set the training region
@@ -93,7 +93,6 @@ model = NeuralNetwork(num_basis, two_d)
 """
 if torch.cuda.device_count() > 1:
   print("Let's use", torch.cuda.device_count(), "GPUs!")
-  # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
   model = torch.nn.DataParallel(model)
 """
 
@@ -138,8 +137,9 @@ if epochs>0:
     print("Saved PyTorch Model State to model.pth")
 
 # Load model
-model = NeuralNetwork(num_basis, two_d).to(device)
-model.load_state_dict(torch.load("model.pth"))
+if epochs==0:
+    model = NeuralNetwork(num_basis, two_d).to(device)
+    model.load_state_dict(torch.load("model.pth"))
 
 
 # Use loaded model to make predictions
@@ -194,11 +194,61 @@ print(f"Final eval pde loss is {np.sum(pde_loss)/len(eval_data)}")
 
 eval_data = eval_data.cpu().numpy()
 
+breakpoint()
+
+# reshape the output matrices
+if two_d:
+    eval_data = eval_data.reshape((lengths[0]*lengths[1],2)) # use as a check
+    u_total_all = u_total_all.reshape((lengths[0],lengths[1]))
+    u_in_all = u_in_all.reshape((lengths[0],lengths[1]))
+else:  
+    eval_data = eval_data.reshape((lengths[0]*lengths[1],3)) # use as a check
+    u_total_all = u_total_all.reshape((lengths[0],lengths[1],lengths[2]))
+    u_in_all = u_in_all.reshape((lengths[0],lengths[1],lengths[2]))
+
+np.save("u_total_all.npy", u_total_all)
+np.save("u_in_all.npy", u_in_all)
+
+breakpoint()
+
 # Plot results
 plt.figure()
 plt.title('Test Loss')
 plt.plot(test_loss_vec)
 plt.show()
+
+if not(two_d):
+    u_total_all = u_total_all[:,:,0]
+    u_in_all = u_in_all[:,:,0]
+
+plt.figure()
+plt.title('Magnitude of Total Field')
+sc = plt.imshow(np.abs(u_total_all))
+plt.colorbar(sc)
+plt.show()
+
+plt.figure()
+plt.title('Phase of Total Field')
+sc = plt.imshow(np.angle(u_total_all))
+plt.colorbar(sc)
+plt.show()
+
+plt.figure()
+plt.title('Magnitude Input Wave')
+sc = plt.imshow(np.abs(u_in_all))
+plt.colorbar(sc)
+plt.show()
+
+plt.figure()
+plt.title('Phase Input Wave')
+sc = plt.imshow(np.angle(u_in_all))
+plt.colorbar(sc)
+plt.show()
+
+breakpoint()
+
+# Plot results
+
 
 plt.figure()
 plt.title('Magnitude')
