@@ -161,6 +161,8 @@ pde_loss = []
 
 with torch.no_grad():
     k0 = get_k0(wavelength)
+    total_examples_finished = 0
+    size = len(eval_dataloader.dataset)
     for eval_data_i in eval_dataloader:
         if two_d:
             u_in = create_plane_wave_2d(eval_data_i, 
@@ -185,12 +187,12 @@ with torch.no_grad():
 
         u_total_all = np.concatenate((u_total_all,u_total.cpu().numpy()), axis=0)
         u_in_all = np.concatenate((u_in_all, u_in.cpu().numpy()), axis=0)
+        total_examples_finished += len(eval_data_i)
+        print(f"loss: {pde_loss/len(eval_data_i):>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
 
 print(f"Final eval pde loss is {np.sum(pde_loss)/len(eval_data)}")
 
 eval_data = eval_data.cpu().numpy()
-
-breakpoint()
 
 # Plot results
 plt.figure()
@@ -200,24 +202,24 @@ plt.show()
 
 plt.figure()
 plt.title('Magnitude')
-sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.abs(u_total))
+sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.abs(u_total_all))
 plt.colorbar(sc)
 plt.show()
 
 plt.figure()
 plt.title('Phase')
-sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.angle(u_total))
+sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.angle(u_total_all))
 plt.colorbar(sc)
 plt.show()
 
 plt.figure()
 plt.title('Magnitude Plane Wave')
-sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.abs(u_in))
+sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.abs(u_in_all))
 plt.colorbar(sc)
 plt.show()
 
 plt.figure()
 plt.title('Phase Plane Wave')
-sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.angle(u_in))
+sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.angle(u_in_all))
 plt.colorbar(sc)
 plt.show()
