@@ -155,7 +155,7 @@ def transform_affine_pde(wavelength,
     # get the left hand side of the PDE
     f = -k0**2*(refractive_index**2 - n_background**2)*u_in
     f = torch.unsqueeze(f,dim=1)
-    return linear_pde, f, u_scatter_complex, u_in
+    return linear_pde, f, u_scatter_complex, u_in, refractive_index
 
 def get_pde_loss(data, 
                  wavelength,
@@ -170,7 +170,7 @@ def get_pde_loss(data,
 
     k0 = get_k0(wavelength)
 
-    linear_pde, f, u_scatter_complex, u_in = \
+    linear_pde, f, u_scatter_complex, u_in, refractive_index = \
     transform_affine_pde(wavelength,
                         data,
                         k0,
@@ -197,7 +197,7 @@ def get_pde_loss(data,
 
     # if underdetermined, use the second dataset to get the loss
     if data_2 is not None:
-        linear_pde, f, _, _ = \
+        linear_pde, f, _, _, _ = \
         transform_affine_pde(wavelength,
                             data_2,
                             k0,
@@ -212,7 +212,7 @@ def get_pde_loss(data,
     pde = linear_pde_combine-f
     pde = torch.squeeze(pde, dim=1)
     pde_loss = torch.sum(torch.abs(pde))
-    return pde_loss, u_total, u_scatter_complex_combine
+    return pde_loss, u_total, u_scatter_complex_combine, refractive_index
 
 def train(dataloader, 
           dataloader_2,
@@ -236,7 +236,7 @@ def train(dataloader,
         data = data.to(device)
         # Compute prediction error
         u_scatter = model(data)
-        pde_loss, _, _ = loss_fn(data, 
+        pde_loss, _, _, _ = loss_fn(data, 
                                  u_scatter,
                                  data_2,
                                 )
@@ -262,7 +262,7 @@ def test(dataloader,
             data = data.to(device)
             
             u_scatter = model(data)
-            pde_loss, _, _ = loss_fn(data, 
+            pde_loss, _, _, _ = loss_fn(data, 
                                      u_scatter,
                                      data_2=None,
                                     )

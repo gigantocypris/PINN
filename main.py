@@ -157,6 +157,7 @@ eval_data, lengths = create_data(eval_data_x_start, eval_data_x_end, eval_data_x
 eval_dataloader = DataLoader(eval_data, batch_size=batch_size, shuffle=False)
 u_total_all = np.array([])
 u_in_all = np.array([])
+refractive_index_all = np.array([])
 pde_loss = []
 
 with torch.no_grad():
@@ -179,14 +180,15 @@ with torch.no_grad():
         
         u_scatter_test = model(eval_data_i)
         
-        pde_loss_i, u_total, u_scatter = loss_fn(eval_data_i, 
-                                                 u_scatter_test,
-                                                 data_2=None,
-                                                )
+        pde_loss_i, u_total, u_scatter, refractive_index = loss_fn(eval_data_i, 
+                                                                   u_scatter_test,
+                                                                   data_2=None,
+                                                                  )
         pde_loss.append(pde_loss_i.cpu().numpy())
 
         u_total_all = np.concatenate((u_total_all,u_total.cpu().numpy()), axis=0)
         u_in_all = np.concatenate((u_in_all, u_in.cpu().numpy()), axis=0)
+        refractive_index_all = np.concatenate((refractive_index_all, refractive_index.cpu().numpy()), axis=0)
         total_examples_finished += len(eval_data_i)
         print(f"loss: {pde_loss_i/len(eval_data_i):>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
 
@@ -200,10 +202,12 @@ if two_d:
     eval_data = np.reshape(eval_data, [lengths[0],lengths[1],2]) # use as a check
     u_total_all = np.reshape(u_total_all, [lengths[0],lengths[1]])
     u_in_all = np.reshape(u_in_all, [lengths[0],lengths[1]])
+    refractive_index_all = np.reshape(refractive_index_all, [lengths[0],lengths[1]])
 else:  
     eval_data = np.reshape(eval_data, [lengths[0],lengths[1],lengths[2],3]) # use as a check
     u_total_all = np.reshape(u_total_all, [lengths[0],lengths[1],lengths[2]])
     u_in_all = np.reshape(u_in_all, [lengths[0],lengths[1],lengths[2]])
+    refractive_index_all = np.reshape(refractive_index_all, [lengths[0],lengths[1],lengths[2]])
 
 np.save("u_total_all.npy", u_total_all)
 np.save("u_in_all.npy", u_in_all)
@@ -217,8 +221,16 @@ plt.savefig("test_loss.png")
 plt.show()
 
 if not(two_d):
-    u_total_all = u_total_all[:,:,0]
-    u_in_all = u_in_all[:,:,0]
+    u_total_all = u_total_all[:,:,lengths[2]//2]
+    u_in_all = u_in_all[:,:,lengths[2]//2]
+    refractive_index_all = refractive_index_all[:,:,lengths[2]//2]
+
+plt.figure()
+plt.title('Refractive Index')
+sc = plt.imshow(refractive_index_all)
+plt.colorbar(sc)
+plt.savefig("refractive_index.png")
+plt.show()
 
 plt.figure()
 plt.title('Magnitude of Total Field')
