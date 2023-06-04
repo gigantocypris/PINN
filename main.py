@@ -14,7 +14,7 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
 use_cpu = False
-epochs = 0 # if epochs=0, then load model from model.pth
+epochs = 10 # if epochs=0, then load model from model.pth
 two_d = True
 
 # set the training region
@@ -194,27 +194,26 @@ print(f"Final eval pde loss is {np.sum(pde_loss)/len(eval_data)}")
 
 eval_data = eval_data.cpu().numpy()
 
-breakpoint()
 
 # reshape the output matrices
 if two_d:
-    eval_data = np.reshape(eval_data, [lengths[0]*lengths[1],2]) # use as a check
+    eval_data = np.reshape(eval_data, [lengths[0],lengths[1],2]) # use as a check
     u_total_all = np.reshape(u_total_all, [lengths[0],lengths[1]])
     u_in_all = np.reshape(u_in_all, [lengths[0],lengths[1]])
 else:  
-    eval_data = np.reshape(eval_data, [lengths[0]*lengths[1],3]) # use as a check
+    eval_data = np.reshape(eval_data, [lengths[0],lengths[1],lengths[2],3]) # use as a check
     u_total_all = np.reshape(u_total_all, [lengths[0],lengths[1],lengths[2]])
     u_in_all = np.reshape(u_in_all, [lengths[0],lengths[1],lengths[2]])
 
 np.save("u_total_all.npy", u_total_all)
 np.save("u_in_all.npy", u_in_all)
 
-breakpoint()
 
 # Plot results
 plt.figure()
 plt.title('Test Loss')
 plt.plot(test_loss_vec)
+plt.savefig("test_loss.png")
 plt.show()
 
 if not(two_d):
@@ -225,30 +224,33 @@ plt.figure()
 plt.title('Magnitude of Total Field')
 sc = plt.imshow(np.abs(u_total_all))
 plt.colorbar(sc)
+plt.savefig("u_total_magnitude.png")
 plt.show()
 
 plt.figure()
 plt.title('Phase of Total Field')
 sc = plt.imshow(np.angle(u_total_all))
 plt.colorbar(sc)
+plt.savefig("u_total_phase.png")
 plt.show()
 
 plt.figure()
 plt.title('Magnitude Input Wave')
 sc = plt.imshow(np.abs(u_in_all))
 plt.colorbar(sc)
+plt.savefig("u_in_magnitude.png")
 plt.show()
 
 plt.figure()
 plt.title('Phase Input Wave')
 sc = plt.imshow(np.angle(u_in_all))
 plt.colorbar(sc)
+plt.savefig("u_in_phase.png")
 plt.show()
 
-breakpoint()
 
-# Plot results
-
+"""
+# Scatter Plot results
 
 plt.figure()
 plt.title('Magnitude')
@@ -273,3 +275,4 @@ plt.title('Phase Plane Wave')
 sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.angle(u_in_all))
 plt.colorbar(sc)
 plt.show()
+"""
