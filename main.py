@@ -122,7 +122,7 @@ torch.save(model.state_dict(), "model.pth")
 print("Saved PyTorch Model State to model.pth")
 
 # Load model
-model = NeuralNetwork(num_basis).to(device)
+model = NeuralNetwork(num_basis, two_d).to(device)
 model.load_state_dict(torch.load("model.pth"))
 
 
