@@ -21,11 +21,12 @@ def create_data(min_vals, max_vals, spacings, device, two_d):
     return data
 
 class NeuralNetwork(nn.Module):
-    def __init__(self, num_basis):
+    def __init__(self, num_basis, two_d):
         super().__init__()
+        input_dim = 2 if two_d else 3
         self.num_basis = num_basis
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(3, 64),
+            nn.Linear(input_dim, 64),
             nn.Tanh(),
             nn.Linear(64, 64),
             nn.Tanh(),
@@ -40,10 +41,10 @@ class NeuralNetwork(nn.Module):
 
 def evalulate_refractive_index(data,
                                n_background, 
-                               radius=0.5, # um
+                               radius=3, # um
                               ):
     """evalulate the refractive index of at the data points for spherical dielectric"""
-    return torch.where(torch.sum(data**2,dim=1)<radius**2, 0.75, n_background)
+    return torch.where(torch.sum(data**2,dim=1)<radius**2, 1.88, n_background)
 
 
 def get_k0(wavelength):
@@ -51,14 +52,14 @@ def get_k0(wavelength):
     return 2*np.pi/wavelength
 
 
-def create_plane_wave(data, 
-                      wavelength,
-                      n_background,
-                      device,
-                      amplitude=1,
-                      tilt_theta=np.pi/2, # radians, angle from the xy plane, np.pi/2 is in the z-direction
-                      tilt_phi=0, # radians, angle in the xy plane
-                     ):
+def create_plane_wave_3d(data, 
+                         wavelength,
+                         n_background,
+                         device,
+                         amplitude=1,
+                         tilt_theta=np.pi/2, # radians, angle from the xy plane, np.pi/2 is in the z-direction
+                         tilt_phi=0, # radians, angle in the xy plane
+                        ):
     """create free space plane wave u_in"""
     """z is the direction of propagation"""
     """x into the page, y up, z to the right"""
@@ -71,27 +72,52 @@ def create_plane_wave(data,
     k = torch.tensor([[kx, ky, kz]], dtype=torch.cfloat, device=device)
     return(amplitude*torch.exp(-1j*(torch.sum(k*data, dim=1))))
 
+def create_plane_wave_2d(data, 
+                         wavelength,
+                         n_background,
+                         device,
+                         amplitude=1,
+                         tilt_theta=np.pi/2, # radians, angle from the xy plane, np.pi/2 is in the z-direction
+                        ):
+    """create free space plane wave u_in"""
+    """z is the direction of propagation"""
+    """x is up, z to the right"""
+    k0 = get_k0(wavelength)
+    k = n_background*k0
+    kx = k*np.cos(tilt_theta)
+    kz = np.sqrt(k**2-kx**2)
+    k = torch.tensor([[kx, kz]], dtype=torch.cfloat, device=device)
+    return(amplitude*torch.exp(-1j*(torch.sum(k*data, dim=1))))
+
 def transform_linear_pde(data, 
                          k0,
                          n_background,
                          u_scatter,
                          model,
-                         device,
+                         two_d,
                         ):
     '''Get the right hand side of the PDE (del**2 + n**2*k0**2)*u_scatter = -(n**2-n_background**2)*k0**2*u_in))'''
     hess = torch.vmap(torch.func.hessian(model, argnums=0),in_dims=(0))(data) # hessian
     refractive_index = evalulate_refractive_index(data, n_background) 
     
     du_scatter_xx = torch.squeeze(hess[:,:,:,:,0,0], dim=1)
-    du_scatter_yy = torch.squeeze(hess[:,:,:,:,1,1], dim=1)
-    du_scatter_zz = torch.squeeze(hess[:,:,:,:,2,2], dim=1)
+
+    if two_d:
+        du_scatter_zz = torch.squeeze(hess[:,:,:,:,1,1], dim=1)
+    else:
+        du_scatter_yy = torch.squeeze(hess[:,:,:,:,1,1], dim=1)
+        du_scatter_zz = torch.squeeze(hess[:,:,:,:,2,2], dim=1)
     
     du_scatter_xx_complex = du_scatter_xx[:,:,0]+1j*du_scatter_xx[:,:,1]
-    du_scatter_yy_complex = du_scatter_yy[:,:,0]+1j*du_scatter_yy[:,:,1]
+    if not two_d:
+        du_scatter_yy_complex = du_scatter_yy[:,:,0]+1j*du_scatter_yy[:,:,1]
     du_scatter_zz_complex = du_scatter_zz[:,:,0]+1j*du_scatter_zz[:,:,1]
     u_scatter_complex = u_scatter[:,:,0]+1j*u_scatter[:,:,1]
     
-    linear_pde = du_scatter_xx_complex+du_scatter_yy_complex+du_scatter_zz_complex+k0**2*torch.unsqueeze(refractive_index,dim=1)**2*u_scatter_complex
+    if two_d:
+        linear_pde = du_scatter_xx_complex+du_scatter_zz_complex+k0**2*torch.unsqueeze(refractive_index,dim=1)**2*u_scatter_complex
+    else:
+        linear_pde = du_scatter_xx_complex+du_scatter_yy_complex+du_scatter_zz_complex+k0**2*torch.unsqueeze(refractive_index,dim=1)**2*u_scatter_complex
     return linear_pde, refractive_index, u_scatter_complex
 
 def transform_affine_pde(wavelength,
@@ -101,6 +127,7 @@ def transform_affine_pde(wavelength,
                          u_scatter,
                          model,
                          device,
+                         two_d,
                          ):
     '''Get the right and left hand side of the PDE (del**2 + n**2*k0**2)*u_scatter = -(n**2-n_background**2)*k0**2*u_in))'''
 
@@ -111,11 +138,18 @@ def transform_affine_pde(wavelength,
                                                                            u_scatter,
                                                                            model,
                                                                            device,
+                                                                           two_d,
                                                                           )
-    u_in = create_plane_wave(data, 
-                             wavelength,
-                             n_background,
-                             device)
+    if two_d:
+        u_in = create_plane_wave_2d(data, 
+                                    wavelength,
+                                    n_background,
+                                    device)
+    else:
+        u_in = create_plane_wave_3d(data, 
+                                    wavelength,
+                                    n_background,
+                                    device)
     
     # get the left hand side of the PDE
     f = -k0**2*(refractive_index**2 - n_background**2)*u_in
@@ -129,6 +163,7 @@ def get_pde_loss(data,
                  model,
                  device,
                  use_pde_cl,
+                 two_d,
                  data_2=None,
                  ):
 
@@ -142,6 +177,7 @@ def get_pde_loss(data,
                         u_scatter,
                         model,
                         device,
+                        two_d,
                         )
 
 

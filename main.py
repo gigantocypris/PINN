@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
-from utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0, create_plane_wave
+from utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0, create_plane_wave_2d, create_plane_wave_3d
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -10,17 +10,17 @@ import numpy as np
 batch_size = 100
 num_basis = 200 # number of basis functions, N in pde-cl paper
 use_pde_cl = True # use the partial differential equation constrained layer
-wavelength = 2.1 # um
-n_background = 1
+wavelength = 1 # um
+n_background = 1.33
 use_cpu = False
 epochs = 100
 two_d = True
 
 # set the training region
 if two_d:
-    training_data_x_start = [-2,-2]
-    training_data_x_end = [2,2]
-    training_data_x_step = [0.1,0.1]
+    training_data_x_start = [-14,-14]
+    training_data_x_end = [14,14]
+    training_data_x_step = [0.03,0.03]
 else:
     training_data_x_start = [-2,-2,-2]
     training_data_x_end = [2,2,2]
@@ -28,8 +28,8 @@ else:
 
 # set the test region
 if two_d:
-    test_data_x_start = [-2,-2]
-    test_data_x_end = [2,2]
+    training_data_x_start = [-14,-14]
+    training_data_x_end = [14,14]
     test_data_x_step = [0.5,0.5]
 else:
     test_data_x_start = [-2,-2,-2]
@@ -102,6 +102,7 @@ def loss_fn(data, u_scatter, data_2):
                         model,
                         device,
                         use_pde_cl,
+                        two_d,
                         data_2=data_2,
                         ) 
 
@@ -132,19 +133,23 @@ model.eval()
 # Visualize the PINN with list of coordinates
 offset_eval = 0.03
 
-eval_data_x_start = [-2,-2,0]
-eval_data_x_end = [2,2,0.1]
-eval_data_x_step = [0.1,0.1,0.1]
-eval_data = create_data(np.array(eval_data_x_start)+offset_eval, 
-                        np.array(eval_data_x_end)+offset_eval, eval_data_x_step, device)
+eval_data = create_data(np.array(training_data_x_start)+offset_eval, 
+                        np.array(training_data_x_end)+offset_eval, training_data_x_step, device)
 
 with torch.no_grad():
     k0 = get_k0(wavelength)
-    u_in = create_plane_wave(eval_data, 
-                             wavelength,
-                             n_background,
-                             device,
-                            )
+    if two_d:
+        u_in = create_plane_wave_2d(eval_data, 
+                                wavelength,
+                                n_background,
+                                device,
+                                )
+    else:
+        u_in = create_plane_wave_3d(eval_data, 
+                                wavelength,
+                                n_background,
+                                device,
+                                )
     
     u_scatter_test = model(eval_data)
     
