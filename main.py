@@ -13,15 +13,14 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
 use_cpu = False
-epochs = 100
+epochs = 10
 two_d = True
 
 # set the training region
 if two_d:
     training_data_x_start = [-14,-14]
     training_data_x_end = [14,14]
-    training_data_x_step = [0.5,0.5]
-    # training_data_x_step = [0.03,0.03]
+    training_data_x_step = [0.03,0.03]
 else:
     training_data_x_start = [-2,-2,-2]
     training_data_x_end = [2,2,2]
