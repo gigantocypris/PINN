@@ -39,6 +39,13 @@ def run_nonblocking_p_p(rank, size):
     req.wait()
     print('Rank ' + str(rank) + ' has data ' + str(tensor[0]))
 
+def run_all_reduce(rank, size):
+    """All-reduce example, sum of all tensors on all processes"""
+    group = dist.new_group([0,1])
+    tensor = torch.ones(1)
+    dist.all_reduce(tensor, op=dist.ReduceOp.SUM, group=group)
+    print('Rank ' + str(rank) + ' has data ' + str(tensor[0]))
+
 def run(rank,size):
     """Distributed function to be implemented later"""
     pass
@@ -55,7 +62,7 @@ if __name__ == "__main__":
     processes = []
     mp.set_start_method("spawn")
     for rank in range(size):
-        p = mp.Process(target=init_process, args=(rank, size, run_nonblocking_p_p))
+        p = mp.Process(target=init_process, args=(rank, size, run_all_reduce))
         p.start()
         processes.append(p)
     
