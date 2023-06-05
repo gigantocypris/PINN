@@ -10,6 +10,7 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
+
 def run_blocking_p_p(rank_size):
     """Blocking point-to-point communication"""
     tensor = torch.zeros(1)
@@ -33,6 +34,7 @@ def init_process(rank, size, fn, backend='gloo'):
     fn(rank,size) # this will be the run function
 
 if __name__ == "main":
+    print("hello")
     size = 2 # total number of ranks
     processes = []
     mp.set_start_method("spawn")
