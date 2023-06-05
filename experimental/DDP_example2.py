@@ -37,7 +37,7 @@ if __name__ == "main":
     processes = []
     mp.set_start_method("spawn")
     for rank in range(size):
-        p = mp.Process(target=init_process, args=(rank, size, run))
+        p = mp.Process(target=init_process, args=(rank, size, run_blocking_p_p))
         p.start()
         processes.append(p)
     
