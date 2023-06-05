@@ -33,6 +33,8 @@ def init_process(rank, size, fn, backend='gloo'):
     dist.init_process_group(backend, rank=rank, world_size=size)
     fn(rank,size) # this will be the run function
 
+print("hello")
+
 if __name__ == "main":
     print("hello")
     size = 2 # total number of ranks
