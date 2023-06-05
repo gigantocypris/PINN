@@ -11,7 +11,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 
 
-def run_blocking_p_p(rank_size):
+def run_blocking_p_p(rank, size):
     """Blocking point-to-point communication"""
     tensor = torch.zeros(1)
     if rank == 0:
