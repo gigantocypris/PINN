@@ -219,8 +219,11 @@ def train(dataloader,
           model, 
           loss_fn, 
           optimizer,
+          dtype,
+          jitter,
           device,
           ):
+    
     """Train the model for one epoch"""
     if dataloader_2 is not None:
         dataloader_2_iter = iter(dataloader_2)
@@ -228,18 +231,23 @@ def train(dataloader,
     model.train()
     total_examples_finished = 0
     for data in dataloader:
+        rand_1 = jitter*(torch.rand(data.shape, dtype=dtype, device=device) - 0.5)
         if dataloader_2 is not None:
             data_2 = next(dataloader_2_iter)
+            rand_2 = jitter*(torch.rand(data_2.shape, dtype=dtype, device=device) - 0.5)
             data_2 = data_2.to(device)
+            data_2 += rand_2
         else:
             data_2 = None
+        
         data = data.to(device)
+        data += rand_1
         # Compute prediction error
         u_scatter = model(data)
         pde_loss, _, _, _ = loss_fn(data, 
-                                 u_scatter,
-                                 data_2,
-                                )
+                                    u_scatter,
+                                    data_2,
+                                   )
         pde_loss = pde_loss/len(data)
         # Backpropagation
         optimizer.zero_grad()

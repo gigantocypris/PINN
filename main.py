@@ -16,7 +16,8 @@ n_background = 1.33
 use_cpu = False
 epochs = 10 # if epochs=0, then load model from model.pth
 two_d = True
-learning_rate = 1e-4
+learning_rate = 1e-3
+jitter = 0.015 # jitter for training data
 
 # set the training region
 if two_d:
@@ -123,9 +124,9 @@ start = time.time()
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     if batch_size>num_basis:
-        train(train_dataloader, None, model, loss_fn, optimizer, device)
+        train(train_dataloader, None, model, loss_fn, optimizer, dtype, jitter, device)
     else:
-        train(train_dataloader, train_dataloader_2, model, loss_fn, optimizer, device)
+        train(train_dataloader, train_dataloader_2, model, loss_fn, optimizer, dtype, jitter, device)
     test_loss = test(test_dataloader, model, loss_fn, device)
     test_loss_vec.append(test_loss)
     torch.save(model.state_dict(), "model.pth") # save model
