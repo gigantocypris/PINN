@@ -21,7 +21,7 @@ def run_blocking_p_p(rank_size):
     else:
         # Receives the tensor from process 0
         dist.recv(tensor=tensor, src=0)
-    print('Rank ', rank, ' has data ', tensor[0])
+    print('Rank ' + str(rank) + ' has data ' + str(tensor[0]))
 
 def run(rank,size):
     """Distributed function to be implemented later"""
@@ -29,7 +29,7 @@ def run(rank,size):
 
 def init_process(rank, size, fn, backend='gloo'):
     """Initialize the distributed environment"""
-    os.environ['MASTER_PORT'] = 29500
+    os.environ['MASTER_PORT'] = '29500'
     dist.init_process_group(backend, rank=rank, world_size=size)
     fn(rank,size) # this will be the run function
 
