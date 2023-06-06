@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 
+# COMMAND LINE ARGS HERE
+
 # units are microns
 
 # set parameters
