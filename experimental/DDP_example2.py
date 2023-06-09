@@ -2,6 +2,16 @@
 This must be run in the shell/SLURM script:
 export MASTER_ADDR=$(hostname)
 
+Listing available CUDA devices:
+> python
+>>> import torch
+>>> num_of_gpus = torch.cuda.device_count()
+>>> print(num_of_gpus)
+
+Use an interactive session to run:
+salloc -N 1 --time=60 -C gpu -A m3562_g --qos=interactive
+ --ntasks-per-gpu=2
+
 Reference: https://pytorch.org/tutorials/intermediate/dist_tuto.html
 https://github.com/seba-1511/dist_tuto.pth/blob/gh-pages/train_dist.py
 """
@@ -20,6 +30,7 @@ from torch.autograd import Variable
 import torch.multiprocessing as mp
 from torchvision import datasets, transforms
 
+import time
 
 def run_blocking_p_p(rank, size):
     """Blocking point-to-point communication"""
@@ -101,7 +112,7 @@ class Net(nn.Module):
     """Network architecture."""
     def __init__(self):
         super(Net,self).__init__()
-        self.conv1 = nn.Conv1d(1,10,kernel_size=5)
+        self.conv1 = nn.Conv2d(1,10,kernel_size=5)
         self.conv2 = nn.Conv2d(10,20, kernel_size=5)
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320,50)
@@ -114,7 +125,7 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
-        return F.log_softmax(x)
+        return F.log_softmax(x, dim=1)
 
 def partition_dataset():
     """Partitioning MNIST"""
@@ -133,25 +144,54 @@ def partition_dataset():
                                             shuffle=True)
     return train_set, bsz
 
-# XXX LINE 94 in the GITHUB
+def average_gradients(model):
+    """Gradient averaging."""
+    size = float(dist.get_world_size())
+    for param in model.parameters():
+        if type(param) is torch.Tensor:
+            dist.all_reduce(param.grad.data, op=dist.reduce_op.SUM, group=0)
+            param.grad.data /= size
 
 def run_mnist(rank, size):
     """Distributed Synchronous SGD Example"""
+    print('Hello from rank: ' + str(rank))
+    device = torch.device("cuda:{}".format(rank))
     torch.manual_seed(1234)
     train_set, bsz = partition_dataset()
-    model = Net()
+    model = Net().to(device)
     optimizer = optim.SGD(model.parameters(),
                           lr=0.01, momentum=0.5)
+    
+    num_batches = ceil(len(train_set.dataset)/float(bsz))
+
+    for epoch in range(10):
+        epoch_loss = 0.0
+        print('rank is ' + str(rank) +' and epoch is ' + str(epoch))
+        for data, target in train_set:
+            data, target = Variable(data), Variable(target)
+            data, target = data.to(device), target.to(device)
+            optimizer.zero_grad()
+            output = model(data)
+            loss = F.nll_loss(output, target)
+            epoch_loss += loss
+            loss.backward()
+            average_gradients(model)
+            optimizer.step()
+        print('Rank ', dist.get_rank(), ', epoch ', epoch, ': ', epoch_loss / num_batches)
+
 
 if __name__ == "__main__":
     print("hello")
-    size = 2 # total number of ranks
+    start_time = time.time()
+    size = 4 # total number of ranks
     processes = []
     mp.set_start_method("spawn")
     for rank in range(size):
-        p = mp.Process(target=init_process, args=(rank, size, run_all_reduce))
+        p = mp.Process(target=init_process, args=(rank, size, run_mnist))
         p.start()
         processes.append(p)
     
     for p in processes:
         p.join()
+    end_time = time.time()
+    print('Total training time was: ' + str(end_time-start_time))

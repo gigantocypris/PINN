@@ -5,9 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 
-# COMMAND LINE ARGS HERE
-# test
-# test 2
+# XXX switch these parameters to command line arguments
 
 # units are microns
 
@@ -101,7 +99,6 @@ if torch.cuda.device_count() > 1:
   print("Let's use", torch.cuda.device_count(), "GPUs!")
   model = torch.nn.DataParallel(model)
 """
-
 model.to(device)
 
                         
