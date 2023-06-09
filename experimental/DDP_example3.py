@@ -108,7 +108,7 @@ def run_demo(demo_fn, world_size):
 
 
 if __name__ == "__main__":
-    world_size = 1
+    world_size = 2
     # fn = demo_basic
     fn = demo_checkpoint
     run_demo(fn, world_size)
