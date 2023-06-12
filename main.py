@@ -13,6 +13,155 @@ from utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0,
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import argparse
+
+import os
+import torch.distributed as dist
+import torch.multiprocessing as mp
+
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+def get_args():
+    ### Command line args ###
+    # units are microns
+
+    # set parameters
+    batch_size = 400
+    num_basis = 200 # number of basis functions, N in pde-cl paper
+    use_pde_cl = True # use the partial differential equation constrained layer
+    wavelength = 1 # um
+    n_background = 1.33
+    use_cpu = False
+    epochs = 2 # if epochs=0, then load model from model.pth
+    two_d = True
+    learning_rate = 1e-3
+    jitter = 0.015 # jitter for training data
+    show_figures = False
+
+    # set the training region
+    if two_d:
+        training_data_x_start = [-14,-14]
+        training_data_x_end = [14,14]
+        training_data_x_step = [0.5,0.5]
+        # training_data_x_step = [0.03,0.03]
+    else:
+        training_data_x_start = [-2,-2,-2]
+        training_data_x_end = [2,2,2]
+        training_data_x_step = [0.1,0.1,0.1]
+
+    # set the test region
+    if two_d:
+        test_data_x_start = [-14,-14]
+        test_data_x_end = [14,14]
+        test_data_x_step = [0.5,0.5]
+    else:
+        test_data_x_start = [-2,-2,-2]
+        test_data_x_end = [2,2,2]
+        test_data_x_step = [0.5,0.5,0.5]
+
+    # offset if using underdetermined linear system
+    offset = 0.05
+
+    eval_data_x_start = training_data_x_start
+    eval_data_x_end = training_data_x_end
+    if two_d:
+        #eval_data_x_step = [0.03,0.03]
+        eval_data_x_step = [0.5,0.5]
+    else:
+        eval_data_x_step = [0.1,0.1,0.1]
+
+    parser = argparse.ArgumentParser(description='Get command line args')
+    parser.add_argument('--ae', type=float, action='store', dest='adam_epsilon', 
+                        help='adam_epsilon', default = 1e-7)
+    parser.add_argument('-b', type=int, action='store', dest='batch_size',
+                        help='batch size', default = 4)    
+    parser.add_argument('--ns', type=int, action='store', dest='num_samples',
+                        help='number of times to sample VAE in training', default = 2)  
+    parser.add_argument('--det', action='store_true', dest='deterministic', 
+                        help='no latent variable, simply maximizes log probability of output_dist') 
+    parser.add_argument('--dp', type=float, action='store', dest='dropout_prob', 
+                        help='dropout_prob, percentage of nodes that are dropped', default=0)
+    parser.add_argument('--en', type=int, action='store', dest='example_num', 
+                        help='example index for visualization', default = 0)
+    parser.add_argument('-i', type=int, action='store', dest='num_iter', 
+                        help='number of training iterations', default = 100)
+    parser.add_argument('--ik', type=int, action='store', dest='intermediate_kernel',
+                        help='intermediate_kernel for model_encode', default = 4)
+    parser.add_argument('--il', type=int, action='store', dest='intermediate_layers', 
+                        help='intermediate_layers for model_encode', default = 2)
+    parser.add_argument('--input_path', action='store',
+                        help='path to folder containing training data')
+    parser.add_argument('--klaf', type=float, action='store', dest='kl_anneal_factor', 
+                        help='multiply kl_anneal by this factor each iteration', default=1)
+    parser.add_argument('--klm', type=float, action='store', dest='kl_multiplier', 
+                        help='multiply the kl_divergence term in the loss function by this factor', default=1)
+    parser.add_argument('--ks', type=int, action='store', dest='kernel_size',
+                        help='kernel size in model_encode_I_m', default = 4)
+    parser.add_argument('--lr', type=float, action='store', dest='learning_rate',
+                        help='learning rate', default = 1e-4)
+    parser.add_argument('--nb', type=int, action='store', dest='num_blocks', 
+                        help='num convolution blocks in model_encode', default = 3)
+    parser.add_argument('--nfm', type=int, action='store', dest='num_feature_maps', 
+                        help='number of features in the first block of model_encode', default = 20)
+    parser.add_argument('--nfmm', type=float, action='store', dest='num_feature_maps_multiplier', 
+                        help='multiplier of features for each block of model_encode', default = 1.1)
+    parser.add_argument('--norm', type=float, action='store', dest='norm', 
+                        help='gradient clipping by norm', default=100)
+    parser.add_argument('--normal', action='store_true', dest='use_normal', 
+                        help='use a normal distribution as final distribution') 
+    parser.add_argument('--nsa', type=int, action='store', dest='num_sparse_angles', \
+                        help='number of angles to image per sample (dose remains the same)', default = 10)
+    parser.add_argument('--api', type=int, action='store', dest='angles_per_iter', \
+                        help='number of angles to check per iteration (stochastic optimization)', default = 5)
+    parser.add_argument('--pnm', type=float, action='store', dest='poisson_noise_multiplier',
+                        help='poisson noise multiplier, higher value means higher SNR', default = (2**16-1)*0.41)
+    parser.add_argument('--pnm_start', type=float, action='store', dest='pnm_start', 
+                        help='poisson noise multiplier starting value, anneals to pnm value', default = None)
+    parser.add_argument('--train_pnm', action='store_true', dest='train_pnm', 
+                        help='if True, make poisson_noise_multiplier a trainable variable')   
+    parser.add_argument('-r', type=int, action='store', dest='restore_num', 
+                        help='checkpoint number to restore from', default = None)
+    parser.add_argument('--random', action='store_true', dest='random', 
+                        help='if True, randomly pick angles for masks')
+    parser.add_argument('--restore', action='store_true', dest='restore', \
+                        help='restore from previous training')
+    parser.add_argument('--save_path', action='store',
+                        help='path to save output')
+    parser.add_argument('--se', type=int, action='store', dest='stride_encode',
+                        help='convolution stride in model_encode_I_m', default = 2)
+    parser.add_argument('--si', type=int, action='store', dest='save_interval', 
+                        help='save_interval for checkpoints and intermediate values', default = 100000)
+    parser.add_argument('--td', type=int, action='store', dest='truncate_dataset', 
+                        help='truncate_dataset by this value to not load in entire dataset; overriden when restoring a net', default = 100)
+    parser.add_argument('--train', action='store_true', dest='train',
+                        help='run the training loop')
+    parser.add_argument('--ufs', action='store_true', dest='use_first_skip', 
+                        help='use the first skip connection in the unet')
+    parser.add_argument('--ulc', action='store_true', dest='use_latest_ckpt', \
+                        help='uses latest checkpoint, overrides -r')
+    parser.add_argument('--visualize', action='store_true', dest='visualize', 
+                        help='visualize results')
+    parser.add_argument('--pixel_dist', action='store_true', dest='pixel_dist', 
+                        help='get distribution of each pixel in final reconstruction')
+    parser.add_argument('--real', action='store_true', dest='real_data', 
+                        help='denotes real data, does not simulate noise') 
+    parser.add_argument('--no_pad', action='store_true', dest='no_pad', 
+                        help='sinograms have no zero-padding') 
+    parser.add_argument('--toy_masks', action='store_true', dest='toy_masks', 
+                        help='uses the toy masks') 
+    parser.add_argument('--algorithms', action='store', help='list of initial algorithms to use', 
+                         nargs='+',default=['gridrec'])
+    parser.add_argument('--no_final_eval', action='store_true', dest='no_final_eval', 
+                        help='skips the final evaluation') 
+    args = parser.parse_args()
+    return args
+
+
+def setup(rank, world_size):
+    os.environ['MASTER_PORT'] = '29500'
+
+    # initialize the process group
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
 # XXX switch these parameters to command line arguments
 
