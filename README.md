@@ -31,6 +31,18 @@ To use the conda environment:
 conda activate pytorch2
 ```
 
+## How to run the code on MacBook Pro
+
+Activate the conda environment:
+```
+conda activate pytorch2
+```
+
+Navigate to the PINN directory and run:
+```
+python main.py
+```
+
 ## Setup on NERSC
 
 Open a Perlmutter terminal. To install code in `$SCRATCH`:
@@ -76,6 +88,17 @@ Install the other pip dependencies:
 ```
 python -m pip install -r requirements.txt
 ```
+
+## Setup on Swarthmore server
+
+```
+ssh -Y microway@130.58.53.85
+```
+
+Use the NERSC directions except for the `module load python` command
+
+clone directory to /home/microway/Documents
+
 
 ## How to run the code on NERSC
 

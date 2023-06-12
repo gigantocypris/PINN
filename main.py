@@ -16,7 +16,7 @@ use_pde_cl = True # use the partial differential equation constrained layer
 wavelength = 1 # um
 n_background = 1.33
 use_cpu = False
-epochs = 10 # if epochs=0, then load model from model.pth
+epochs = 2 # if epochs=0, then load model from model.pth
 two_d = True
 learning_rate = 1e-3
 jitter = 0.015 # jitter for training data
@@ -25,8 +25,8 @@ jitter = 0.015 # jitter for training data
 if two_d:
     training_data_x_start = [-14,-14]
     training_data_x_end = [14,14]
-    # training_data_x_step = [0.1,0.1]
-    training_data_x_step = [0.03,0.03]
+    training_data_x_step = [0.5,0.5]
+    # training_data_x_step = [0.03,0.03]
 else:
     training_data_x_start = [-2,-2,-2]
     training_data_x_end = [2,2,2]
@@ -79,7 +79,7 @@ if batch_size<num_basis:
 # Test data for validation of pde loss
 # Test data is a list of coordinates
 test_data, _ = create_data(test_data_x_start, test_data_x_end, test_data_x_step, device, two_d)
-
+breakpoint()
 # Force num_basis = 1 if not using pde-cl
 if not(use_pde_cl):
     num_basis = 1
@@ -151,6 +151,7 @@ eval_data_x_start = training_data_x_start
 eval_data_x_end = training_data_x_end
 if two_d:
     eval_data_x_step = [0.03,0.03]
+    eval_data_x_step = [0.1,0.1]
 else:
     eval_data_x_step = [0.1,0.1,0.1]
 

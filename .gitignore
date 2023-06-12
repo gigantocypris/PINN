@@ -162,3 +162,5 @@ cython_debug/
 .DS_Store
 institut_fresnel_experimental_data
 *.pth
+*.npy
+*.png
