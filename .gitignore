@@ -164,3 +164,4 @@ institut_fresnel_experimental_data
 *.pth
 *.npy
 *.png
+model.checkpoint

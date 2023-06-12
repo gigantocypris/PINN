@@ -1,3 +1,12 @@
+"""
+This must be run in the shell/SLURM before running this script:
+For NERSC:
+export MASTER_ADDR=$(hostname)
+
+For other servers:
+export MASTER_ADDR=localhost
+"""
+
 import torch
 from torch.utils.data import DataLoader
 from utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0, create_plane_wave_2d, create_plane_wave_3d
@@ -80,7 +89,6 @@ if batch_size<num_basis:
 # Test data for validation of pde loss
 # Test data is a list of coordinates
 test_data, _ = create_data(test_data_x_start, test_data_x_end, test_data_x_step, device, two_d)
-breakpoint()
 # Force num_basis = 1 if not using pde-cl
 if not(use_pde_cl):
     num_basis = 1
@@ -151,8 +159,8 @@ model.eval()
 eval_data_x_start = training_data_x_start
 eval_data_x_end = training_data_x_end
 if two_d:
-    eval_data_x_step = [0.03,0.03]
-    eval_data_x_step = [0.1,0.1]
+    #eval_data_x_step = [0.03,0.03]
+    eval_data_x_step = [0.5,0.5]
 else:
     eval_data_x_step = [0.1,0.1,0.1]
 
