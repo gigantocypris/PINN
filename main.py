@@ -20,6 +20,7 @@ epochs = 2 # if epochs=0, then load model from model.pth
 two_d = True
 learning_rate = 1e-3
 jitter = 0.015 # jitter for training data
+show_figures = False
 
 # set the training region
 if two_d:
@@ -220,7 +221,8 @@ plt.figure()
 plt.title('Test Loss')
 plt.plot(test_loss_vec)
 plt.savefig("test_loss.png")
-plt.show()
+if show_figures:
+    plt.show()
 
 if not(two_d):
     u_total_all = u_total_all[:,:,lengths[2]//2]
@@ -232,42 +234,48 @@ plt.title('Refractive Index')
 sc = plt.imshow(refractive_index_all)
 plt.colorbar(sc)
 plt.savefig("refractive_index.png")
-plt.show()
+if show_figures:
+    plt.show()
 
 plt.figure()
 plt.title('Magnitude of Total Field')
 sc = plt.imshow(np.abs(u_total_all))
 plt.colorbar(sc)
 plt.savefig("u_total_magnitude.png")
-plt.show()
+if show_figures:
+    plt.show()
 
 plt.figure()
 plt.title('Log Magnitude of Total Field')
 sc = plt.imshow(np.log(np.abs(u_total_all)))
 plt.colorbar(sc)
 plt.savefig("u_total_log_magnitude.png")
-plt.show()
+if show_figures:
+    plt.show()
 
 plt.figure()
 plt.title('Phase of Total Field')
 sc = plt.imshow(np.angle(u_total_all))
 plt.colorbar(sc)
 plt.savefig("u_total_phase.png")
-plt.show()
+if show_figures:
+    plt.show()
 
 plt.figure()
 plt.title('Magnitude Input Wave')
 sc = plt.imshow(np.abs(u_in_all))
 plt.colorbar(sc)
 plt.savefig("u_in_magnitude.png")
-plt.show()
+if show_figures:
+    plt.show()
 
 plt.figure()
 plt.title('Phase Input Wave')
 sc = plt.imshow(np.angle(u_in_all))
 plt.colorbar(sc)
 plt.savefig("u_in_phase.png")
-plt.show()
+if show_figures:
+    plt.show()
 
 
 """
@@ -277,23 +285,27 @@ plt.figure()
 plt.title('Magnitude')
 sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.abs(u_total_all))
 plt.colorbar(sc)
-plt.show()
+if show_figures:
+    plt.show()
 
 plt.figure()
 plt.title('Phase')
 sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.angle(u_total_all))
 plt.colorbar(sc)
-plt.show()
+if show_figures:
+    plt.show()
 
 plt.figure()
 plt.title('Magnitude Plane Wave')
 sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.abs(u_in_all))
 plt.colorbar(sc)
-plt.show()
+if show_figures:
+    plt.show()
 
 plt.figure()
 plt.title('Phase Plane Wave')
 sc = plt.scatter(x=eval_data[:,0],y=eval_data[:,1],c=np.angle(u_in_all))
 plt.colorbar(sc)
-plt.show()
+if show_figures:
+    plt.show()
 """
