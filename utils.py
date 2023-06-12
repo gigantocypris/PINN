@@ -3,13 +3,14 @@
 import numpy as np
 import torch
 from torch import nn
+from random import Random
 
-def create_data(min_vals, max_vals, spacings, device, two_d):
+def create_data(min_vals, max_vals, spacings, two_d):
     """Create a list of coordinates from a grid"""
     data = []
     lengths = []
     for i in range(len(spacings)):
-        data_i = torch.arange(min_vals[i],max_vals[i],spacings[i],device=device)
+        data_i = torch.arange(min_vals[i],max_vals[i],spacings[i])
         data.append(data_i)
         lengths.append(len(data_i))
     if two_d:
@@ -21,6 +22,42 @@ def create_data(min_vals, max_vals, spacings, device, two_d):
         data = torch.stack((data_xm, data_ym, data_zm), dim=3)
         data = torch.reshape(data, (-1,3))
     return data, lengths
+
+class Partition(object):
+    """Dataset partitioning helper"""
+    def __init__(self, data, index):
+        self.data = data
+        self.index = index
+
+    def __len__(self):
+        return len(self.index)
+    
+    def __getitem__(self,index):
+        data_idx = self.index[index]
+        return self.data[data_idx]
+
+class DataPartitioner(object):
+    """Partitions a dataset into different chunks"""
+    def __init__(self, data, sizes=[0.7, 0.2, 0.1], seed=1234, shuffle=True):
+        self.data = data
+        self.partitions = []
+        rng = Random()
+        rng.seed(seed)
+        data_len = len(data)
+        indexes = [x for x in range(0, data_len)]
+        if shuffle:
+            rng.shuffle(indexes)
+
+        for ind,frac in enumerate(sizes):
+            part_len = int(frac*data_len)
+            if ind==len(sizes):
+                self.partitions.append(indexes)
+            else:
+                self.partitions.append(indexes[0:part_len])
+            indexes = indexes[part_len:]
+
+    def use(self, partition):
+        return Partition(self.data, self.partitions[partition])
 
 class NeuralNetwork(nn.Module):
     def __init__(self, num_basis, two_d):
@@ -246,7 +283,7 @@ def train(dataloader,
         u_scatter = model(data)
         pde_loss, _, _, _ = loss_fn(data, 
                                     u_scatter,
-                                    data_2,
+                                    data_2.to(device) if data_2 is not None else None,
                                    )
         pde_loss = pde_loss/len(data)
         # Backpropagation
@@ -254,8 +291,7 @@ def train(dataloader,
         pde_loss.backward()
         optimizer.step()
         total_examples_finished += len(data)
-        pde_loss = pde_loss.item()
-        print(f"loss: {pde_loss:>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
+        print(f"{device}: loss: {pde_loss.item():>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
 
 def test(dataloader, 
          model, 
@@ -279,3 +315,4 @@ def test(dataloader,
     test_loss /= size
     print(f"Avg test loss: {test_loss:>8f}")
     return test_loss
+
