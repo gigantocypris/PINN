@@ -4,6 +4,8 @@ https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 
 This must be run in the shell/SLURM before running this script:
 export MASTER_ADDR=$(hostname)
+
+export MASTER_ADDR=localhost
 """
 
 import os
