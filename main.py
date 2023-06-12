@@ -426,4 +426,4 @@ if __name__=='__main__':
         
     visualize(args, world_size)
     end = time.time()
-    print("Time to train (s): " + str(start-end))
+    print("Time to train (s): " + str(end-start))
