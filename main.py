@@ -188,6 +188,7 @@ def run(rank, world_size, args,
     print(model)
 
     if args.use_dist:
+        device = rank #{'cuda:%d' % 0: 'cuda:%d' % rank}
         model.to(rank)
         ddp_model = DDP(model, device_ids=[rank])
     else:
@@ -197,9 +198,8 @@ def run(rank, world_size, args,
     
 
     if args.load_model:
-        if args.use_dist:
-            # configure device properly
-            device = {'cuda:%d' % 0: 'cuda:%d' % rank}
+        if args.use_dist:  
+            map_location = {'cuda:%d' % 0: 'cuda:%d' % rank} 
             ddp_model.load_state_dict(
                 torch.load(args.checkpoint_path, map_location=device)
             )

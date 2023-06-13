@@ -50,10 +50,7 @@ class DataPartitioner(object):
 
         for ind,frac in enumerate(sizes):
             part_len = int(frac*data_len)
-            if ind==len(sizes):
-                self.partitions.append(indexes)
-            else:
-                self.partitions.append(indexes[0:part_len])
+            self.partitions.append(indexes[0:part_len])
             indexes = indexes[part_len:]
 
     def use(self, partition):
@@ -136,7 +133,8 @@ def transform_linear_pde(data,
                          two_d,
                         ):
     '''Get the right hand side of the PDE (del**2 + n**2*k0**2)*u_scatter = -(n**2-n_background**2)*k0**2*u_in))'''
-    hess = torch.vmap(torch.func.hessian(model, argnums=0),in_dims=(0))(data) # hessian
+    hess_fn = torch.func.hessian(model, argnums=0)
+    hess = torch.vmap(hess_fn,in_dims=(0))(data) # hessian
     refractive_index = evalulate_refractive_index(data, n_background) 
     
     du_scatter_xx = torch.squeeze(hess[:,:,:,:,0,0], dim=1)
@@ -268,6 +266,7 @@ def train(dataloader,
     model.train()
     total_examples_finished = 0
     for data in dataloader:
+        data = data.to(device)
         rand_1 = jitter*(torch.rand(data.shape, dtype=dtype, device=device) - 0.5)
         if dataloader_2 is not None:
             data_2 = next(dataloader_2_iter)
@@ -277,7 +276,7 @@ def train(dataloader,
         else:
             data_2 = None
         
-        data = data.to(device)
+        
         data += rand_1
         # Compute prediction error
         u_scatter = model(data)
