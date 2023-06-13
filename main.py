@@ -6,8 +6,11 @@ export MASTER_ADDR=$(hostname)
 For other servers:
 export MASTER_ADDR=localhost
 
-for default operation:
+for default operation without distribution:
 python main.py --upc --2d
+
+for distributed operation:
+python main.py --upc --2d --dist
 """
 import os
 import numpy as np
