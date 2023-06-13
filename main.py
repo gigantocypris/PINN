@@ -62,7 +62,7 @@ def get_args():
     parser.add_argument('--train_x_end', action='store', dest='training_data_x_end',
                         help='training data x end', nargs='+', default = [14,14])
     parser.add_argument('--train_x_step', action='store', dest='training_data_x_step',
-                        help='training data x step', nargs='+', default = [0.1,0.1])
+                        help='training data x step', nargs='+', default = [0.03,0.03])
     
     # set the test region
     parser.add_argument('--test_x_start', action='store', dest='test_data_x_start',
@@ -78,7 +78,7 @@ def get_args():
     parser.add_argument('--eval_x_end', action='store', dest='eval_data_x_end',
                         help='eval data x end', nargs='+', default = [14,14])
     parser.add_argument('--eval_x_step', action='store', dest='eval_data_x_step',
-                        help='evaluation data x step', nargs='+', default = [0.5,0.5])  
+                        help='evaluation data x step', nargs='+', default = [0.03,0.03])  
 
     parser.add_argument('--load', action='store_true', dest='load_model',
                         help='load model from model.pth')
