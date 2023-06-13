@@ -191,6 +191,7 @@ def run(rank, world_size, args,
     print(model)
 
     if args.use_dist:
+        device = rank #{'cuda:%d' % 0: 'cuda:%d' % rank}
         model.to(rank)
         ddp_model = DDP(model, device_ids=[rank])
     else:
@@ -200,9 +201,8 @@ def run(rank, world_size, args,
     
 
     if args.load_model:
-        if args.use_dist:
-            # configure device properly
-            device = {'cuda:%d' % 0: 'cuda:%d' % rank}
+        if args.use_dist:  
+            map_location = {'cuda:%d' % 0: 'cuda:%d' % rank} 
             ddp_model.load_state_dict(
                 torch.load(args.checkpoint_path, map_location=device)
             )
@@ -246,7 +246,7 @@ def run(rank, world_size, args,
     if args.use_dist:
         cleanup()
 
-def visualize(args, world_size):
+def visualize(args):
     """
     Visualize the PINN with list of evaluation coordinates
     Not yet implemented with distributed computing
@@ -257,7 +257,7 @@ def visualize(args, world_size):
     eval_dataloader = DataLoader(eval_data, batch_size=args.batch_size, shuffle=False)
 
     # Load model
-
+    breakpoint()
     model = NeuralNetwork(args.num_basis, args.two_d).to(device)
     model.load_state_dict(torch.load(args.checkpoint_path))
 
@@ -427,6 +427,6 @@ if __name__=='__main__':
             dtype = torch.float,
             )
         
-    visualize(args, world_size)
+    visualize(args)
     end = time.time()
     print("Time to train (s): " + str(end-start))

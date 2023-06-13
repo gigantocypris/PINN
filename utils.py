@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from torch import nn
 from random import Random
+from torch.autograd import Variable
 
 def create_data(min_vals, max_vals, spacings, two_d):
     """Create a list of coordinates from a grid"""
@@ -50,10 +51,7 @@ class DataPartitioner(object):
 
         for ind,frac in enumerate(sizes):
             part_len = int(frac*data_len)
-            if ind==len(sizes):
-                self.partitions.append(indexes)
-            else:
-                self.partitions.append(indexes[0:part_len])
+            self.partitions.append(indexes[0:part_len])
             indexes = indexes[part_len:]
 
     def use(self, partition):
@@ -134,9 +132,25 @@ def transform_linear_pde(data,
                          u_scatter,
                          model,
                          two_d,
+                         device,
+                         use_vmap=True,
                         ):
     '''Get the right hand side of the PDE (del**2 + n**2*k0**2)*u_scatter = -(n**2-n_background**2)*k0**2*u_in))'''
-    hess = torch.vmap(torch.func.hessian(model, argnums=0),in_dims=(0))(data) # hessian
+    hess_fn = torch.func.hessian(model, argnums=0)
+
+    """ 
+    if use_vmap:
+        hess = torch.vmap(hess_fn,in_dims=(0))(data) # hessian
+    else:
+        hess = []
+        for i in range(data.size(0)):
+            hess_i = hess_fn(data[i])
+            hess.append(hess_i)
+        # Concatenate the outputs to form a single tensor
+        hess = torch.stack(hess, dim=0) 
+    """
+    
+    hess = torch.zeros([data.size(0), 1, 200, 2, 2, 2],device=device)
     refractive_index = evalulate_refractive_index(data, n_background) 
     
     du_scatter_xx = torch.squeeze(hess[:,:,:,:,0,0], dim=1)
@@ -177,6 +191,7 @@ def transform_affine_pde(wavelength,
                                                                            u_scatter,
                                                                            model,
                                                                            two_d,
+                                                                           device,
                                                                           )
     if two_d:
         u_in = create_plane_wave_2d(data, 
@@ -268,16 +283,19 @@ def train(dataloader,
     model.train()
     total_examples_finished = 0
     for data in dataloader:
+        # data = Variable(data)
+        data = data.to(device)
         rand_1 = jitter*(torch.rand(data.shape, dtype=dtype, device=device) - 0.5)
         if dataloader_2 is not None:
             data_2 = next(dataloader_2_iter)
+            # data_2 = Variable(data_2)
             rand_2 = jitter*(torch.rand(data_2.shape, dtype=dtype, device=device) - 0.5)
             data_2 = data_2.to(device)
             data_2 += rand_2
         else:
             data_2 = None
         
-        data = data.to(device)
+        
         data += rand_1
         # Compute prediction error
         u_scatter = model(data)
