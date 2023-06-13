@@ -116,6 +116,22 @@ cd $SCRATCH/PINN
 python main.py
 ```
 
+## How to run the SLURM script on NERSC
+
+Open a Perlmutter terminal.
+```
+module load python
+conda activate PINN
+```
+
+Navigate to the output directory and run the code:
+```
+cd $SCRATCH/output_PINN
+sbatch $SCRATCH/PINN/slurm_train.sh
+```
+Submitted batch job 10209497
+
+
 ## Resources
 
 Learning differentiable solvers for systems with hard constraints
