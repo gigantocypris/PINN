@@ -36,7 +36,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Get command line args')
 
     parser.add_argument('--bs', type=int, action='store', dest='batch_size',
-                        help='batch size', default = 400)    
+                        help='batch size', default = 1600)    
     parser.add_argument('--nb', type=int, action='store', dest='num_basis',
                         help='number of basis functions, N in pde-cl paper', default = 200)  
     parser.add_argument('--upc', action='store_true', dest='use_pde_cl', 
@@ -62,7 +62,7 @@ def get_args():
     parser.add_argument('--train_x_end', action='store', dest='training_data_x_end',
                         help='training data x end', nargs='+', default = [14,14])
     parser.add_argument('--train_x_step', action='store', dest='training_data_x_step',
-                        help='training data x step', nargs='+', default = [0.5,0.5])
+                        help='training data x step', nargs='+', default = [0.1,0.1])
     
     # set the test region
     parser.add_argument('--test_x_start', action='store', dest='test_data_x_start',
@@ -90,11 +90,13 @@ def get_args():
     return args
 
 
-def setup(rank, world_size):
+def setup(rank, world_size, fn, args, backend='gloo'):
     os.environ['MASTER_PORT'] = '29500'
-
     # initialize the process group
-    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+    dist.init_process_group(backend, rank=rank, world_size=world_size)
+    fn(rank,world_size, args) # this will be the run function
+
+
 
 def cleanup():
     dist.destroy_process_group()
@@ -177,7 +179,6 @@ def run(rank, world_size, args,
         ):
     if args.use_dist:
         print(f"Running on rank {rank}.")
-        setup(rank, world_size)
 
     train_set, train_set_2, test_set, bsz = partition_dataset(args, world_size)
 
@@ -192,8 +193,9 @@ def run(rank, world_size, args,
 
     if args.use_dist:
         device = rank #{'cuda:%d' % 0: 'cuda:%d' % rank}
-        model.to(rank)
-        ddp_model = DDP(model, device_ids=[rank])
+        ddp_model = model
+        ddp_model.to(rank)
+        #ddp_model = DDP(model, device_ids=[rank])
     else:
         device = get_device(args)
         ddp_model = model
@@ -226,14 +228,12 @@ def run(rank, world_size, args,
     optimizer = torch.optim.Adam(ddp_model.parameters(), lr=args.learning_rate)
     optimizer.zero_grad()
 
-    ###
-
     # Train the PINN
     test_loss_vec = []
     start = time.time()
     for t in range(args.epochs):
         print(f"Epoch {t+1}\n-------------------------------")
-        train(train_set, train_set_2, model, loss_fn, optimizer, dtype, args.jitter, device)
+        train(train_set, train_set_2, model, loss_fn, optimizer, dtype, args.jitter, device, args.use_dist)
         test_loss = test(test_set, model, loss_fn, device)
         test_loss_vec.append(test_loss)
         # Automatically synced here, don't need barrier
@@ -257,7 +257,6 @@ def visualize(args):
     eval_dataloader = DataLoader(eval_data, batch_size=args.batch_size, shuffle=False)
 
     # Load model
-    breakpoint()
     model = NeuralNetwork(args.num_basis, args.two_d).to(device)
     model.load_state_dict(torch.load(args.checkpoint_path))
 
@@ -417,14 +416,24 @@ if __name__=='__main__':
 
     start = time.time()
     if args.use_dist:
-        mp.spawn(run,
-                args=(world_size,args,torch.float), # arguments passed to demo_fn after the rank argument
-                nprocs=world_size, # number of processes to spawn
-                join=True)
+        processes = []
+        mp.set_start_method("spawn")
+        for rank in range(world_size):
+            p = mp.Process(target=setup, args=(rank, world_size, run, args))
+            p.start()
+            processes.append(p)
+        
+        for p in processes:
+            p.join()
+
+
+        # mp.spawn(run,
+        #         args=(world_size,args,torch.float), # arguments passed to demo_fn after the rank argument
+        #         nprocs=world_size, # number of processes to spawn
+        #         join=True)
     else:
         rank = 0
         run(rank, world_size, args,
-            dtype = torch.float,
             )
         
     visualize(args)

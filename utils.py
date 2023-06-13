@@ -5,6 +5,8 @@ import torch
 from torch import nn
 from random import Random
 from torch.autograd import Variable
+import torch.distributed as dist
+
 
 def create_data(min_vals, max_vals, spacings, two_d):
     """Create a list of coordinates from a grid"""
@@ -138,7 +140,7 @@ def transform_linear_pde(data,
     '''Get the right hand side of the PDE (del**2 + n**2*k0**2)*u_scatter = -(n**2-n_background**2)*k0**2*u_in))'''
     hess_fn = torch.func.hessian(model, argnums=0)
 
-    """ 
+
     if use_vmap:
         hess = torch.vmap(hess_fn,in_dims=(0))(data) # hessian
     else:
@@ -148,9 +150,9 @@ def transform_linear_pde(data,
             hess.append(hess_i)
         # Concatenate the outputs to form a single tensor
         hess = torch.stack(hess, dim=0) 
-    """
+
     
-    hess = torch.zeros([data.size(0), 1, 200, 2, 2, 2],device=device)
+    #hess = torch.zeros([data.size(0), 1, 200, 2, 2, 2],device=device)
     refractive_index = evalulate_refractive_index(data, n_background) 
     
     du_scatter_xx = torch.squeeze(hess[:,:,:,:,0,0], dim=1)
@@ -266,6 +268,14 @@ def get_pde_loss(data,
     pde_loss = torch.sum(torch.abs(pde))
     return pde_loss, u_total, u_scatter_complex_combine, refractive_index
 
+def average_gradients(model):
+    """Gradient averaging."""
+    world_size = dist.get_world_size()
+    for param in model.parameters():
+        if type(param) is torch.Tensor:
+            dist.all_reduce(param.grad.data, op=dist.reduce_op.SUM, group=0)
+            param.grad.data /= world_size
+
 def train(dataloader, 
           dataloader_2,
           model, 
@@ -274,6 +284,7 @@ def train(dataloader,
           dtype,
           jitter,
           device,
+          use_dist
           ):
     
     """Train the model for one epoch"""
@@ -307,6 +318,8 @@ def train(dataloader,
         # Backpropagation
         optimizer.zero_grad()
         pde_loss.backward()
+        if use_dist:
+            average_gradients(model)
         optimizer.step()
         total_examples_finished += len(data)
         print(f"{device}: loss: {pde_loss.item():>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
