@@ -107,7 +107,7 @@ Run the following commands to use the conda environment and start an interactive
 ```
 module load python
 conda activate PINN
-salloc -N 1 --time=60 -C gpu -A m3562_g --qos=interactive --ntasks-per-gpu=8 --cpus-per-task=4
+salloc -N 1 --time=60 -C gpu -A m3562_g --qos=interactive --ntasks-per-gpu=1 --cpus-per-task=32
 ```
 
 Navigate to the directory and run the code:
@@ -129,7 +129,7 @@ Navigate to the output directory and run the code:
 cd $SCRATCH/output_PINN
 sbatch $SCRATCH/PINN/slurm_train.sh
 ```
-Submitted batch job 10209497
+Submitted batch job 10212188
 
 
 ## Resources

@@ -108,7 +108,7 @@ def get_device(args):
                         if torch.cuda.is_available() 
                         else "cpu")
 
-    print(f"Using {device} device")
+    print("Using " + str(device) + " device")
     return device
 
 def get_rank(use_dist):
@@ -178,7 +178,7 @@ def run(rank, world_size, args,
         dtype = torch.float,
         ):
     if args.use_dist:
-        print(f"Running on rank {rank}.")
+        print("Running on rank " + str(rank) + ".")
 
     train_set, train_set_2, test_set, bsz = partition_dataset(args, world_size)
 
@@ -186,7 +186,7 @@ def run(rank, world_size, args,
     if not(args.use_pde_cl):
         args.num_basis = 1
 
-    print(f"Using {args.num_basis} basis functions")
+    print("Using " + str(args.num_basis) + " basis functions")
 
     model = NeuralNetwork(args.num_basis, args.two_d)
     print(model)
@@ -232,7 +232,7 @@ def run(rank, world_size, args,
     test_loss_vec = []
     start = time.time()
     for t in range(args.epochs):
-        print(f"Epoch {t+1}\n-------------------------------")
+        print("Epoch " + str(t+1) + "\n-------------------------------")
         train(train_set, train_set_2, model, loss_fn, optimizer, dtype, args.jitter, device, args.use_dist)
         test_loss = test(test_set, model, loss_fn, device)
         test_loss_vec.append(test_loss)
@@ -246,7 +246,7 @@ def run(rank, world_size, args,
     if args.use_dist:
         cleanup()
 
-def visualize(args):
+def visualize(args, num_devices):
     """
     Visualize the PINN with list of evaluation coordinates
     Not yet implemented with distributed computing
@@ -254,7 +254,7 @@ def visualize(args):
     device = get_device(args)
     eval_data, lengths = create_data(args.eval_data_x_start, args.eval_data_x_end, 
                                      args.eval_data_x_step, args.two_d)
-    eval_dataloader = DataLoader(eval_data, batch_size=args.batch_size, shuffle=False)
+    eval_dataloader = DataLoader(eval_data, batch_size=args.batch_size//num_devices, shuffle=False)
 
     # Load model
     model = NeuralNetwork(args.num_basis, args.two_d).to(device)
@@ -436,6 +436,6 @@ if __name__=='__main__':
         run(rank, world_size, args,
             )
         
-    visualize(args)
+    visualize(args, world_size)
     end = time.time()
     print("Time to train (s): " + str(end-start))
