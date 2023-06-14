@@ -14,7 +14,7 @@
 #SBATCH -e %j.err
 
 export MASTER_ADDR=$(hostname)
-export BATCH_SIZE=512
+export BATCH_SIZE=$1
 export SCRATCH_FOLDER=$SCRATCH/output_PINN/$SLURM_JOB_ID
 mkdir -p $SCRATCH_FOLDER; cd $SCRATCH_FOLDER
 
