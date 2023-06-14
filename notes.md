@@ -23,7 +23,15 @@ Submitted batch job 10212615
 Submitted batch job 10212616
 (PINN) vidyagan@login31:/pscratch/sd/v/vidyagan/output_PINN> sbatch /pscratch/sd/v/vidyagan/PINN/slurm_train.sh 2048
 Submitted batch job 10212617
+
+Memory error for these:
 (PINN) vidyagan@login31:/pscratch/sd/v/vidyagan/output_PINN> sbatch /pscratch/sd/v/vidyagan/PINN/slurm_train.sh 4096
 Submitted batch job 10212619
 (PINN) vidyagan@login31:/pscratch/sd/v/vidyagan/output_PINN> sbatch /pscratch/sd/v/vidyagan/PINN/slurm_train.sh 8192
 Submitted batch job 10212621
+
+All the above could only sense 1 GPU for some reason.
+
+Modified code to distribute with NERSC:
+> sbatch /pscratch/sd/v/vidyagan/PINN/slurm_train.sh 8192
+Submitted batch job 10217467

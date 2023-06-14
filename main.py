@@ -2,6 +2,8 @@
 This must be run in the shell/SLURM before running this script:
 For NERSC:
 export MASTER_ADDR=$(hostname)
+For interactive session:
+export SLURM_NTASKS=4
 
 For other servers:
 export MASTER_ADDR=localhost
@@ -90,8 +92,14 @@ def get_args():
     return args
 
 
-def setup(rank, world_size, fn, args, backend='gloo'):
+def setup(rank, world_size, fn, args, backend='nccl'):
     os.environ['MASTER_PORT'] = '29500'
+
+    # Get the SLURM_PROCID for the current process
+    proc_id = int(os.environ['SLURM_PROCID'])
+
+    print("Hello from " + str(proc_id))
+    print(get_rank(args.use_dist))
     # initialize the process group
     dist.init_process_group(backend, rank=rank, world_size=world_size)
     fn(rank,world_size, args) # this will be the run function
@@ -179,6 +187,11 @@ def run(rank, world_size, args,
         ):
     if args.use_dist:
         print("Running on rank " + str(rank) + ".")
+
+    proc_id = int(os.environ['SLURM_PROCID'])
+
+    print("Hello from " + str(proc_id))
+    print(get_rank(args.use_dist))
 
     train_set, train_set_2, test_set, bsz = partition_dataset(args, world_size)
 
@@ -407,12 +420,13 @@ if __name__=='__main__':
 
     args = get_args()
 
-    print(str(torch.cuda.device_count()) + " GPUs detected!")
-    if (torch.cuda.device_count() > 1) and args.use_dist:
-        world_size = torch.cuda.device_count()
+    # print(str(torch.cuda.device_count()) + " GPUs detected!")
+    if args.use_dist:
+        # world_size = torch.cuda.device_count()
+        world_size = int(os.environ['SLURM_NTASKS'])
     else:
         world_size = 1
-        args.use_dist = False
+    print('world_size is: ' + str(world_size))
 
     start = time.time()
     if args.use_dist:
