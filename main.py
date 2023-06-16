@@ -38,7 +38,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Get command line args')
 
     parser.add_argument('--bs', type=int, action='store', dest='batch_size',
-                        help='batch size', default = 1600)    
+                        help='batch size', default = 8192)    
     parser.add_argument('--nb', type=int, action='store', dest='num_basis',
                         help='number of basis functions, N in pde-cl paper', default = 200)  
     parser.add_argument('--upc', action='store_true', dest='use_pde_cl', 
@@ -96,10 +96,11 @@ def setup(rank, world_size, fn, args, backend='nccl'):
     os.environ['MASTER_PORT'] = '29500'
 
     # Get the SLURM_PROCID for the current process
-    proc_id = int(os.environ['SLURM_PROCID'])
+    # proc_id = int(os.environ['SLURM_PROCID'])
 
-    print("Hello from " + str(proc_id))
-    print(get_rank(args.use_dist))
+    # print("Hello from " + str(proc_id))
+    # print(get_rank(args.use_dist))
+
     # initialize the process group
     dist.init_process_group(backend, rank=rank, world_size=world_size)
     fn(rank,world_size, args) # this will be the run function
@@ -185,13 +186,9 @@ def partition_dataset(args, world_size):
 def run(rank, world_size, args,
         dtype = torch.float,
         ):
+    
     if args.use_dist:
-        print("Running on rank " + str(rank) + ".")
-
-    proc_id = int(os.environ['SLURM_PROCID'])
-
-    print("Hello from " + str(proc_id))
-    print(get_rank(args.use_dist))
+        print("Running on rank " + str(rank) + ". Running on rank " + str(get_rank(args.use_dist)))
 
     train_set, train_set_2, test_set, bsz = partition_dataset(args, world_size)
 
@@ -206,8 +203,10 @@ def run(rank, world_size, args,
 
     if args.use_dist:
         # device = rank #{'cuda:%d' % 0: 'cuda:%d' % rank}
-        device = torch.device(rank)
-        model.to(rank)
+        # device = torch.device(rank)
+
+        device = torch.device(f'cuda:{rank}')
+        model.to(device)
         #ddp_model = DDP(model, device_ids=[rank])
     else:
         device = get_device(args)

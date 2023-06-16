@@ -174,4 +174,18 @@ https://theaisummer.com/distributed-training-pytorch/
 https://towardsdatascience.com/distribute-your-pytorch-model-in-less-than-20-lines-of-code-61a786e6e7b0
 
 
+Physics-informed neural networks for inverse problems in nano-optics and metamaterials
+Yuyao Chen, Lu Lu, George Em Karniadakis, and Luca Dal Negro
+https://opg.optica.org/oe/fulltext.cfm?uri=oe-28-8-11618&id=429761
 
+Physics-informed neural networks with hard constraints for inverse design
+Lu Lu, Raphael Pestourie, Wenjie Yao, Zhicheng Wang, Francesc Verdugo, Steven G. Johnson
+https://epubs.siam.org/doi/10.1137/21M1397908
+
+Efficient inversion of multiple-scattering model for optical diffraction tomography
+Emmanuel Soubies, Thanh-An Pham, and Michael Unser
+https://opg.optica.org/oe/fulltext.cfm?uri=oe-25-18-21786&id=371123
+
+Lorenz–Mie theory for 2D scattering and resonance calculations
+Denis Gagnon and Louis J Dubé
+https://iopscience.iop.org/article/10.1088/2040-8978/17/10/103501
