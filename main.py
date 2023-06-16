@@ -92,7 +92,9 @@ def get_args():
     return args
 
 
-def setup(rank, world_size, fn, args, backend='nccl'):
+def setup(rank, world_size, fn, args, 
+          training_partition, training_2_partition, test_partition, bsz,
+          backend='nccl'):
     os.environ['MASTER_PORT'] = '29500'
 
     # Get the SLURM_PROCID for the current process
@@ -103,7 +105,8 @@ def setup(rank, world_size, fn, args, backend='nccl'):
 
     # initialize the process group
     dist.init_process_group(backend, rank=rank, world_size=world_size)
-    fn(rank,world_size, args) # this will be the run function
+    fn(rank,world_size, args,
+       training_partition, training_2_partition, test_partition, bsz) # this will be the run function
 
 
 
@@ -132,14 +135,6 @@ def partition_dataset(args, world_size):
     size is the world size (number of ranks)
     """
 
-    # XXX previous code, delete later
-    # train_dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=True)
-    # if batch_size<num_basis:
-    #     train_dataloader_2 = DataLoader(training_data_2, batch_size=batch_size, shuffle=True)
-    # test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-    
-
-
     bsz = args.batch_size//world_size
     partition_sizes = [1.0 / world_size for _ in range(world_size)]
 
@@ -149,11 +144,8 @@ def partition_dataset(args, world_size):
     # Training data is a list of coordinates
     training_data, _ = create_data(args.training_data_x_start, args.training_data_x_end, 
                                    args.training_data_x_step, args.two_d)
-    partition = DataPartitioner(training_data, partition_sizes, shuffle=True)
-    partition = partition.use(get_rank(args.use_dist))
-    train_set = torch.utils.data.DataLoader(partition,
-                                            batch_size=bsz,
-                                            shuffle=True)
+    training_partition = DataPartitioner(training_data, partition_sizes, shuffle=True)
+
 
     # Training data to compute pde loss
     # Training data is a list of coordinates
@@ -161,37 +153,46 @@ def partition_dataset(args, world_size):
     if args.batch_size < args.num_basis:
         training_data_2, _ = create_data(np.array(args.training_data_x_start), 
                                          np.array(args.training_data_x_end), args.training_data_x_step, args.two_d)
-        partition = DataPartitioner(training_data_2, partition_sizes, shuffle=True)
-        partition = partition.use(get_rank(args.use_dist))
-        train_set_2 = torch.utils.data.DataLoader(partition,
-                                                  batch_size=bsz,
-                                                  shuffle=True)
+        training_2_partition = DataPartitioner(training_data_2, partition_sizes, shuffle=True)
     else:
-        train_set_2 = None
+        training_2_partition = None
 
     # Test data for validation of pde loss
     # Test data is a list of coordinates
     test_data, _ = create_data(args.test_data_x_start, args.test_data_x_end, 
                                args.test_data_x_step, args.two_d)
-    partition = DataPartitioner(test_data, partition_sizes, shuffle=False)
-    partition = partition.use(get_rank(args.use_dist))
-    test_set = torch.utils.data.DataLoader(partition,
-                                            batch_size=bsz,
-                                            shuffle=False)
+    test_partition = DataPartitioner(test_data, partition_sizes, shuffle=True)
 
-    return train_set, train_set_2, test_set, bsz
+
+    return training_partition, training_2_partition, test_partition, bsz
 
 
 
 def run(rank, world_size, args,
+        training_partition, training_2_partition, test_partition, bsz,
         dtype = torch.float,
         ):
     
     if args.use_dist:
         print("Running on rank " + str(rank) + ". Running on rank " + str(get_rank(args.use_dist)))
 
-    train_set, train_set_2, test_set, bsz = partition_dataset(args, world_size)
-
+    training_partition = training_partition.use(get_rank(args.use_dist))
+    train_set = torch.utils.data.DataLoader(training_partition,
+                                            batch_size=bsz,
+                                            shuffle=True)
+    if args.batch_size < args.num_basis:
+        training_2_partition = training_2_partition.use(get_rank(args.use_dist))
+        train_set_2 = torch.utils.data.DataLoader(training_2_partition,
+                                                  batch_size=bsz,
+                                                  shuffle=True)
+    else:
+        train_set_2 = None
+    
+    test_partition = test_partition.use(get_rank(args.use_dist))
+    test_set = torch.utils.data.DataLoader(test_partition,
+                                            batch_size=bsz,
+                                            shuffle=True)
+    
     # Force num_basis = 1 if not using pde-cl
     if not(args.use_pde_cl):
         args.num_basis = 1
@@ -270,6 +271,11 @@ def visualize(args, num_devices):
     eval_dataloader = DataLoader(eval_data, batch_size=args.batch_size//num_devices, shuffle=False)
 
     # Load model
+    
+    # Force num_basis = 1 if not using pde-cl
+    if not(args.use_pde_cl):
+        args.num_basis = 1
+
     model = NeuralNetwork(args.num_basis, args.two_d).to(device)
     model.load_state_dict(torch.load(args.checkpoint_path))
 
@@ -293,6 +299,7 @@ def visualize(args, num_devices):
 
     u_total_all = np.array([])
     u_in_all = np.array([])
+    u_scatter_all = np.array([])
     refractive_index_all = np.array([])
     pde_loss = []
 
@@ -318,13 +325,14 @@ def visualize(args, num_devices):
             u_scatter_test = model(eval_data_i)
             
             pde_loss_i, u_total, u_scatter, refractive_index = loss_fn(eval_data_i, 
-                                                                    u_scatter_test,
-                                                                    data_2=None,
-                                                                    )
+                                                                       u_scatter_test,
+                                                                       data_2=None,
+                                                                       )
             pde_loss.append(pde_loss_i.cpu().numpy())
 
             u_total_all = np.concatenate((u_total_all,u_total.cpu().numpy()), axis=0)
             u_in_all = np.concatenate((u_in_all, u_in.cpu().numpy()), axis=0)
+            u_scatter_all = np.concatenate((u_scatter_all, u_scatter.cpu().numpy()), axis=0)
             refractive_index_all = np.concatenate((refractive_index_all, refractive_index.cpu().numpy()), axis=0)
             total_examples_finished += len(eval_data_i)
             print(f"loss: {pde_loss_i/len(eval_data_i):>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
@@ -339,15 +347,18 @@ def visualize(args, num_devices):
         eval_data = np.reshape(eval_data, [lengths[0],lengths[1],2]) # use as a check
         u_total_all = np.reshape(u_total_all, [lengths[0],lengths[1]])
         u_in_all = np.reshape(u_in_all, [lengths[0],lengths[1]])
+        u_scatter_all = np.reshape(u_scatter_all, [lengths[0],lengths[1]])
         refractive_index_all = np.reshape(refractive_index_all, [lengths[0],lengths[1]])
     else:  
         eval_data = np.reshape(eval_data, [lengths[0],lengths[1],lengths[2],3]) # use as a check
         u_total_all = np.reshape(u_total_all, [lengths[0],lengths[1],lengths[2]])
         u_in_all = np.reshape(u_in_all, [lengths[0],lengths[1],lengths[2]])
+        u_scatter_all = np.reshape(u_scatter_all, [lengths[0],lengths[1],lengths[2]])
         refractive_index_all = np.reshape(refractive_index_all, [lengths[0],lengths[1],lengths[2]])
 
     np.save("u_total_all.npy", u_total_all)
     np.save("u_in_all.npy", u_in_all)
+    np.save("u_scatter_all.npy", u_scatter_all)
 
 
     # Plot results
@@ -398,6 +409,30 @@ def visualize(args, num_devices):
         plt.show()
 
     plt.figure()
+    plt.title('Magnitude of Scattered Field')
+    sc = plt.imshow(np.abs(u_scatter_all))
+    plt.colorbar(sc)
+    plt.savefig("u_scatter_magnitude.png")
+    if args.show_figures:
+        plt.show()
+
+    plt.figure()
+    plt.title('Log Magnitude of Scattered Field')
+    sc = plt.imshow(np.log(np.abs(u_scatter_all)))
+    plt.colorbar(sc)
+    plt.savefig("u_scatter_log_magnitude.png")
+    if args.show_figures:
+        plt.show()
+
+    plt.figure()
+    plt.title('Phase of Scattered Field')
+    sc = plt.imshow(np.angle(u_scatter_all))
+    plt.colorbar(sc)
+    plt.savefig("u_scatter_phase.png")
+    if args.show_figures:
+        plt.show()
+
+    plt.figure()
     plt.title('Magnitude Input Wave')
     sc = plt.imshow(np.abs(u_in_all))
     plt.colorbar(sc)
@@ -420,20 +455,23 @@ if __name__=='__main__':
 
     args = get_args()
 
-    # print(str(torch.cuda.device_count()) + " GPUs detected!")
+    print(str(torch.cuda.device_count()) + " GPUs detected!")
     if args.use_dist:
-        # world_size = torch.cuda.device_count()
-        world_size = int(os.environ['SLURM_NTASKS'])
+        world_size = torch.cuda.device_count()
+        # world_size = int(os.environ['SLURM_NTASKS'])
     else:
         world_size = 1
     print('world_size is: ' + str(world_size))
 
+    training_partition, training_2_partition, test_partition, bsz = partition_dataset(args, world_size)
     start = time.time()
     if args.use_dist:
         processes = []
         mp.set_start_method("spawn")
         for rank in range(world_size):
-            p = mp.Process(target=setup, args=(rank, world_size, run, args))
+            p = mp.Process(target=setup, args=(rank, world_size, run, args,
+                                               training_partition, training_2_partition, test_partition, bsz,
+                                               ))
             p.start()
             processes.append(p)
         
@@ -448,6 +486,7 @@ if __name__=='__main__':
     else:
         rank = 0
         run(rank, world_size, args,
+            training_partition, training_2_partition, test_partition, bsz,
             )
         
     visualize(args, world_size)

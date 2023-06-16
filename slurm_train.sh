@@ -6,7 +6,7 @@
 #SBATCH -A m2859_g       # allocation
 #SBATCH -C gpu
 #SBATCH -q regular
-#SBATCH -t 04:00:00
+#SBATCH -t 02:00:00
 #SBATCH --gpus-per-node=4
 #SBATCH --ntasks-per-gpu=1
 #SBATCH --gpus 4
@@ -14,12 +14,13 @@
 #SBATCH -e %j.err
 
 export MASTER_ADDR=$(hostname)
-export BATCH_SIZE=8192
+# export BATCH_SIZE=8192
 export SCRATCH_FOLDER=$SCRATCH/output_PINN/$SLURM_JOB_ID
 mkdir -p $SCRATCH_FOLDER; cd $SCRATCH_FOLDER
 
 echo "jobstart $(date)";pwd
 
-python $SCRATCH/PINN/main.py --upc --2d --dist --bs $BATCH_SIZE --epochs 500
+python $SCRATCH/PINN/main.py --2d --dist --epochs 3000 --bs 872356
+# python $SCRATCH/PINN/main.py --upc --2d --dist --bs $BATCH_SIZE --epochs 500
 
 echo "jobend $(date)";pwd

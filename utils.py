@@ -60,18 +60,18 @@ class DataPartitioner(object):
         return Partition(self.data, self.partitions[partition])
 
 class NeuralNetwork(nn.Module):
-    def __init__(self, num_basis, two_d):
+    def __init__(self, num_basis, two_d, num_hidden_layers=4, hidden_layer_width=64):
         super().__init__()
         input_dim = 2 if two_d else 3
         self.num_basis = num_basis
-        self.linear_relu_stack = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.Tanh(),
-            nn.Linear(64, 64),
-            nn.Tanh(),
-            nn.Linear(64, num_basis*2),
-            nn.Tanh(),
-        )
+        layers = [nn.Linear(input_dim, hidden_layer_width),
+                  nn.Tanh()]
+        for _ in range(num_hidden_layers):
+            layers.append(nn.Linear(hidden_layer_width, hidden_layer_width))
+            layers.append(nn.Tanh())
+        
+        layers.append(nn.Linear(hidden_layer_width, num_basis*2))
+        self.linear_relu_stack = nn.Sequential(*layers)
 
     def forward(self, x):
         u_scatter = self.linear_relu_stack(x)
@@ -84,6 +84,7 @@ def evalulate_refractive_index(data,
                               ):
     """evalulate the refractive index of at the data points for spherical dielectric"""
     return torch.where(torch.sum(data**2,dim=1)<radius**2, 1.88, n_background)
+    #return torch.where(torch.sum(data**2,dim=1)<radius**2, n_background, n_background)
 
 
 def get_k0(wavelength):

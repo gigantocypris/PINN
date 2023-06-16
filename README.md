@@ -107,13 +107,14 @@ Run the following commands to use the conda environment and start an interactive
 ```
 module load python
 conda activate PINN
-salloc -N 1 --time=60 -C gpu -A m3562_g --qos=interactive --ntasks-per-gpu=1 --cpus-per-task=32
+salloc -N 1 --time=120 -C gpu -A m3562_g --qos=interactive --ntasks-per-gpu=1 --cpus
+-per-task=32 -n 4
 ```
 
-Navigate to the directory and run the code:
+Navigate to the working directory and run the code:
 ```
-cd $SCRATCH/PINN
-python main.py
+cd $SCRATCH/output_PINN
+python $SCRATCH/PINN/main.py --upc --2d --dist --epochs 2 --bs 8192
 ```
 
 ## How to run the SLURM script on NERSC
@@ -189,3 +190,10 @@ https://opg.optica.org/oe/fulltext.cfm?uri=oe-25-18-21786&id=371123
 Lorenz–Mie theory for 2D scattering and resonance calculations
 Denis Gagnon and Louis J Dubé
 https://iopscience.iop.org/article/10.1088/2040-8978/17/10/103501
+
+Multinode GPU training:
+https://pytorch.org/tutorials/intermediate/ddp_series_multinode.html
+
+Mie scattering:
+https://en.wikipedia.org/wiki/Mie_scattering
+https://optics.ansys.com/hc/en-us/articles/360042703433-Mie-scattering-FDTD-
