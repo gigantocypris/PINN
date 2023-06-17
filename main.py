@@ -38,7 +38,9 @@ def get_args():
     parser = argparse.ArgumentParser(description='Get command line args')
 
     parser.add_argument('--bs', type=int, action='store', dest='batch_size',
-                        help='batch size', default = 8192)    
+                        help='batch size', default = 8192)  
+    parser.add_argument('--ebs', type=int, action='store', dest='eval_batch_size',
+                        help='eval batch size', default = 78400)
     parser.add_argument('--nb', type=int, action='store', dest='num_basis',
                         help='number of basis functions, N in pde-cl paper', default = 200)  
     parser.add_argument('--upc', action='store_true', dest='use_pde_cl', 
@@ -80,7 +82,7 @@ def get_args():
     parser.add_argument('--eval_x_end', action='store', dest='eval_data_x_end',
                         help='eval data x end', nargs='+', default = [14,14])
     parser.add_argument('--eval_x_step', action='store', dest='eval_data_x_step',
-                        help='evaluation data x step', nargs='+', default = [0.03,0.03])  
+                        help='evaluation data x step', nargs='+', default = [0.1,0.1])  
 
     parser.add_argument('--load', action='store_true', dest='load_model',
                         help='load model from model.pth')
@@ -260,7 +262,8 @@ def run(rank, world_size, args,
     if args.use_dist:
         cleanup()
 
-def visualize(args, num_devices):
+def visualize(args,
+              ):
     """
     Visualize the PINN with list of evaluation coordinates
     Not yet implemented with distributed computing
@@ -268,7 +271,11 @@ def visualize(args, num_devices):
     device = get_device(args)
     eval_data, lengths = create_data(args.eval_data_x_start, args.eval_data_x_end, 
                                      args.eval_data_x_step, args.two_d)
-    eval_dataloader = DataLoader(eval_data, batch_size=args.batch_size//num_devices, shuffle=False)
+    eval_dataloader = DataLoader(eval_data, batch_size=args.eval_batch_size, shuffle=False)
+
+    # XXX Options for solving the linear system:
+    # Solve the full linear system for the weights
+    # Solve the linear system for a subset of the points, use those weights for all points
 
     # Load model
     
@@ -489,6 +496,6 @@ if __name__=='__main__':
             training_partition, training_2_partition, test_partition, bsz,
             )
         
-    visualize(args, world_size)
+    visualize(args)
     end = time.time()
     print("Time to train (s): " + str(end-start))

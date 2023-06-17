@@ -140,8 +140,6 @@ def transform_linear_pde(data,
                         ):
     '''Get the right hand side of the PDE (del**2 + n**2*k0**2)*u_scatter = -(n**2-n_background**2)*k0**2*u_in))'''
     hess_fn = torch.func.hessian(model, argnums=0)
-
-
     if use_vmap:
         hess = torch.vmap(hess_fn,in_dims=(0))(data) # hessian
     else:
@@ -153,7 +151,6 @@ def transform_linear_pde(data,
         hess = torch.stack(hess, dim=0) 
 
     
-    #hess = torch.zeros([data.size(0), 1, 200, 2, 2, 2],device=device)
     refractive_index = evalulate_refractive_index(data, n_background) 
     
     du_scatter_xx = torch.squeeze(hess[:,:,:,:,0,0], dim=1)
@@ -242,6 +239,7 @@ def get_pde_loss(data,
         linear_pde_combine = torch.matmul(linear_pde,w)
         u_scatter_complex_combine = torch.matmul(u_scatter_complex,w)
         u_scatter_complex_combine = torch.squeeze(u_scatter_complex_combine, dim=1)
+        # breakpoint()
     else:
         linear_pde_combine = linear_pde[:,0]
         linear_pde_combine = torch.unsqueeze(linear_pde_combine,dim=1)

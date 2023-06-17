@@ -111,9 +111,19 @@ salloc -N 1 --time=120 -C gpu -A m3562_g --qos=interactive --ntasks-per-gpu=1 --
 -per-task=32 -n 4
 ```
 
+Check SLURM_NTASKS:
+```
+echo $SLURM_NTASKS
+```
+Should be 4, if not, run:
+```
+export SLURM_NTASKS=4
+```
+
 Navigate to the working directory and run the code:
 ```
 cd $SCRATCH/output_PINN
+export MASTER_ADDR=$(hostname)
 python $SCRATCH/PINN/main.py --upc --2d --dist --epochs 2 --bs 8192
 ```
 
