@@ -124,6 +124,8 @@ Navigate to the working directory and run the code:
 ```
 cd $SCRATCH/output_PINN
 export MASTER_ADDR=$(hostname)
+python $SCRATCH/PINN/main.py --2d --epochs 2 --bs 8192 --nb 100 --dist --upc
+python $SCRATCH/PINN/main.py --2d --epochs 2 --bs 8192 --nb 50 --dist --upc
 python $SCRATCH/PINN/main.py --upc --2d --dist --epochs 2 --bs 8192
 ```
 

@@ -218,6 +218,7 @@ def get_pde_loss(data,
                  use_pde_cl,
                  two_d,
                  data_2=None,
+                 w=None,
                  ):
 
     k0 = get_k0(wavelength)
@@ -235,7 +236,8 @@ def get_pde_loss(data,
 
 
     if use_pde_cl:
-        w = torch.linalg.lstsq(linear_pde, f, driver='gels').solution
+        if w is None:
+            w = torch.linalg.lstsq(linear_pde, f, driver='gels').solution
         linear_pde_combine = torch.matmul(linear_pde,w)
         u_scatter_complex_combine = torch.matmul(u_scatter_complex,w)
         u_scatter_complex_combine = torch.squeeze(u_scatter_complex_combine, dim=1)
@@ -265,7 +267,7 @@ def get_pde_loss(data,
     pde = linear_pde_combine-f
     pde = torch.squeeze(pde, dim=1)
     pde_loss = torch.sum(torch.abs(pde))
-    return pde_loss, u_total, u_scatter_complex_combine, refractive_index
+    return pde_loss, u_total, u_scatter_complex_combine, refractive_index, w
 
 def average_gradients(model):
     """Gradient averaging."""
@@ -295,11 +297,13 @@ def train(dataloader,
     for data in dataloader:
         # data = Variable(data)
         data = data.to(device)
-        rand_1 = jitter*(torch.rand(data.shape, dtype=dtype, device=device) - 0.5)
+        # rand_1 = jitter*(torch.rand(data.shape, dtype=dtype, device=device) - 0.5)
+        rand_1 = jitter*torch.randn(data.shape, dtype=dtype, device=device)
         if dataloader_2 is not None:
             data_2 = next(dataloader_2_iter)
             # data_2 = Variable(data_2)
-            rand_2 = jitter*(torch.rand(data_2.shape, dtype=dtype, device=device) - 0.5)
+            # rand_2 = jitter*(torch.rand(data_2.shape, dtype=dtype, device=device) - 0.5)
+            rand_2 = jitter*torch.randn(data_2.shape, dtype=dtype, device=device)
             data_2 = data_2.to(device)
             data_2 += rand_2
         else:
@@ -309,7 +313,7 @@ def train(dataloader,
         data += rand_1
         # Compute prediction error
         u_scatter = model(data)
-        pde_loss, _, _, _ = loss_fn(data, 
+        pde_loss, _, _, _, _ = loss_fn(data, 
                                     u_scatter,
                                     data_2.to(device) if data_2 is not None else None,
                                    )
@@ -336,7 +340,7 @@ def test(dataloader,
             data = data.to(device)
             
             u_scatter = model(data)
-            pde_loss, _, _, _ = loss_fn(data, 
+            pde_loss, _, _, _, _ = loss_fn(data, 
                                      u_scatter,
                                      data_2=None,
                                     )

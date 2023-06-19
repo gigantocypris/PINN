@@ -39,8 +39,6 @@ def get_args():
 
     parser.add_argument('--bs', type=int, action='store', dest='batch_size',
                         help='batch size', default = 8192)  
-    parser.add_argument('--ebs', type=int, action='store', dest='eval_batch_size',
-                        help='eval batch size', default = 78400)
     parser.add_argument('--nb', type=int, action='store', dest='num_basis',
                         help='number of basis functions, N in pde-cl paper', default = 200)  
     parser.add_argument('--upc', action='store_true', dest='use_pde_cl', 
@@ -76,13 +74,21 @@ def get_args():
     parser.add_argument('--test_x_step', action='store', dest='test_data_x_step',
                         help='test data x step', nargs='+', default = [0.5,0.5])   
 
+    # set the evaluation region subset for evaluting w
+    parser.add_argument('--eval_x_start_subset', action='store', dest='eval_data_x_start_subset',
+                        help='evaluation data x start', nargs='+', default = [-7,-7])
+    parser.add_argument('--eval_x_end_subset', action='store', dest='eval_data_x_end_subset',
+                        help='eval data x end', nargs='+', default = [7,7])
+    parser.add_argument('--eval_x_step_subset', action='store', dest='eval_data_x_step_subset',
+                        help='evaluation data x step', nargs='+', default = [0.06,0.06])  
+
     # set the evaluation region
     parser.add_argument('--eval_x_start', action='store', dest='eval_data_x_start',
                         help='evaluation data x start', nargs='+', default = [-14,-14])
     parser.add_argument('--eval_x_end', action='store', dest='eval_data_x_end',
                         help='eval data x end', nargs='+', default = [14,14])
     parser.add_argument('--eval_x_step', action='store', dest='eval_data_x_step',
-                        help='evaluation data x step', nargs='+', default = [0.1,0.1])  
+                        help='evaluation data x step', nargs='+', default = [0.03,0.03])  
 
     parser.add_argument('--load', action='store_true', dest='load_model',
                         help='load model from model.pth')
@@ -115,12 +121,14 @@ def setup(rank, world_size, fn, args,
 def cleanup():
     dist.destroy_process_group()
 
-def get_device(args):
+def get_device(args, force_cpu=False):
     """Get device for non-distributed training"""
     # Get cpu, gpu, or mps device for training.
     device = torch.device("cuda" 
                         if torch.cuda.is_available() 
                         else "cpu")
+    if force_cpu:
+        device = torch.device("cpu")
 
     print("Using " + str(device) + " device")
     return device
@@ -262,21 +270,53 @@ def run(rank, world_size, args,
     if args.use_dist:
         cleanup()
 
+def evaluate(eval_data_i,
+             device,
+             model,
+             loss_fn,
+             w,
+             args,
+             ):
+    eval_data_i = eval_data_i.to(device)
+
+    if args.two_d:
+        u_in = create_plane_wave_2d(eval_data_i, 
+                                    args.wavelength,
+                                    args.n_background,
+                                    device,
+                                )
+    else:
+        u_in = create_plane_wave_3d(eval_data_i, 
+                                    args.wavelength,
+                                    args.n_background,
+                                    device,
+                                )
+    
+    u_scatter_test = model(eval_data_i)
+    
+    pde_loss_i, u_total, u_scatter, refractive_index, w = loss_fn(eval_data_i, 
+                                                                    u_scatter_test,
+                                                                    data_2=None,
+                                                                    w=w,
+                                                                    )
+    return pde_loss_i, u_total, u_scatter, refractive_index, w, u_in
+
 def visualize(args,
-              ):
+              num_devices):
     """
     Visualize the PINN with list of evaluation coordinates
     Not yet implemented with distributed computing
     """
     device = get_device(args)
+    # Solve the linear system for a subset of the points, use those weights for all points
+    eval_data_subset, _ = create_data(args.eval_data_x_start_subset, args.eval_data_x_end_subset, 
+                                    args.eval_data_x_step_subset, args.two_d)
+    
     eval_data, lengths = create_data(args.eval_data_x_start, args.eval_data_x_end, 
                                      args.eval_data_x_step, args.two_d)
-    eval_dataloader = DataLoader(eval_data, batch_size=args.eval_batch_size, shuffle=False)
+    eval_dataloader = DataLoader(eval_data, batch_size=args.batch_size//num_devices, shuffle=False)
 
-    # XXX Options for solving the linear system:
-    # Solve the full linear system for the weights
-    # Solve the linear system for a subset of the points, use those weights for all points
-
+    
     # Load model
     
     # Force num_basis = 1 if not using pde-cl
@@ -287,7 +327,7 @@ def visualize(args,
     model.load_state_dict(torch.load(args.checkpoint_path))
 
     # PDE loss function
-    def loss_fn(data, u_scatter, data_2): 
+    def loss_fn(data, u_scatter, data_2,w=None): 
         return get_pde_loss(data, 
                             args.wavelength,
                             args.n_background,
@@ -297,6 +337,7 @@ def visualize(args,
                             args.use_pde_cl,
                             args.two_d,
                             data_2=data_2,
+                            w=w,
                             ) 
 
     # Use loaded model to make predictions
@@ -309,32 +350,29 @@ def visualize(args,
     u_scatter_all = np.array([])
     refractive_index_all = np.array([])
     pde_loss = []
+    k0 = get_k0(args.wavelength)
 
     with torch.no_grad():
-        k0 = get_k0(args.wavelength)
+        
+        pde_loss_i, u_total, u_scatter, refractive_index, w, u_in = evaluate(eval_data_subset,
+                                                                             device,
+                                                                             model,
+                                                                             loss_fn,
+                                                                             None,
+                                                                             args,
+                                                                            )
+
         total_examples_finished = 0
         size = len(eval_dataloader.dataset)
         for eval_data_i in eval_dataloader:
-            eval_data_i = eval_data_i.to(device)
-            if args.two_d:
-                u_in = create_plane_wave_2d(eval_data_i, 
-                                            args.wavelength,
-                                            args.n_background,
-                                            device,
-                                        )
-            else:
-                u_in = create_plane_wave_3d(eval_data_i, 
-                                            args.wavelength,
-                                            args.n_background,
-                                            device,
-                                        )
-            
-            u_scatter_test = model(eval_data_i)
-            
-            pde_loss_i, u_total, u_scatter, refractive_index = loss_fn(eval_data_i, 
-                                                                       u_scatter_test,
-                                                                       data_2=None,
-                                                                       )
+            pde_loss_i, u_total, u_scatter, refractive_index, w, u_in = evaluate(eval_data_i,
+                                                                           device,
+                                                                           model,
+                                                                           loss_fn,
+                                                                           w,
+                                                                           args,
+                                                                          )
+
             pde_loss.append(pde_loss_i.cpu().numpy())
 
             u_total_all = np.concatenate((u_total_all,u_total.cpu().numpy()), axis=0)
@@ -496,6 +534,6 @@ if __name__=='__main__':
             training_partition, training_2_partition, test_partition, bsz,
             )
         
-    visualize(args)
+    visualize(args, world_size)
     end = time.time()
     print("Time to train (s): " + str(end-start))
