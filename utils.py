@@ -50,14 +50,18 @@ class DataPartitioner(object):
         indexes = [x for x in range(0, data_len)]
         if shuffle:
             rng.shuffle(indexes)
+        self.indexes = indexes
 
         for ind,frac in enumerate(sizes):
             part_len = int(frac*data_len)
             self.partitions.append(indexes[0:part_len])
             indexes = indexes[part_len:]
+        
 
     def use(self, partition):
         return Partition(self.data, self.partitions[partition])
+    def use_all(self):
+        return Partition(self.data, self.indexes)
 
 class NeuralNetwork(nn.Module):
     def __init__(self, num_basis, two_d, num_hidden_layers=4, hidden_layer_width=64):
