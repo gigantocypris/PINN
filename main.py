@@ -60,11 +60,11 @@ def get_args():
     
     # set the training region
     parser.add_argument('--train_x_start', action='store', dest='training_data_x_start',
-                        help='training data x start', nargs='+', default = [-7,-7])
+                        help='training data x start', nargs='+', default = [-3.5,-3.5])
     parser.add_argument('--train_x_end', action='store', dest='training_data_x_end',
-                        help='training data x end', nargs='+', default = [7,7])
+                        help='training data x end', nargs='+', default = [3.5,3.5])
     parser.add_argument('--train_x_step', action='store', dest='training_data_x_step',
-                        help='training data x step', nargs='+', default = [0.15,0.15])
+                        help='training data x step', nargs='+', default = [0.075,0.075])
     
     # set the test region
     parser.add_argument('--test_x_start', action='store', dest='test_data_x_start',
