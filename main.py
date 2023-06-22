@@ -54,7 +54,7 @@ def get_args():
     parser.add_argument('--lr', type=float, action='store', dest='learning_rate',
                         help='learning rate', default = 1e-3)
     parser.add_argument('-j', type=float, action='store', dest='jitter',
-                        help='jitter for training data', default = 0.6)
+                        help='jitter for training data', default = 0.5)
     parser.add_argument('--show', action='store_true', dest='show_figures',
                         help='show figures')
     
@@ -311,7 +311,7 @@ def evaluate(eval_data_i,
     return pde_loss_i, u_total, u_scatter, refractive_index, w, u_in
 
 def visualize(args,
-              num_devices):
+              ):
     """
     Visualize the PINN with list of evaluation coordinates
     Not yet implemented with distributed computing
@@ -323,7 +323,7 @@ def visualize(args,
     
     eval_data, lengths = create_data(args.eval_data_x_start, args.eval_data_x_end, 
                                      args.eval_data_x_step, args.two_d)
-    eval_dataloader = DataLoader(eval_data, batch_size=args.batch_size//num_devices, shuffle=False)
+    eval_dataloader = DataLoader(eval_data, batch_size=args.batch_size, shuffle=False)
 
     
     # Load model
@@ -543,6 +543,6 @@ if __name__=='__main__':
             training_partition, training_2_partition, test_partition,
             )
         
-    visualize(args, world_size)
+    visualize(args)
     end = time.time()
     print("Time to train (s): " + str(end-start))

@@ -63,16 +63,18 @@ class DataPartitioner(object):
     def use_all(self):
         return Partition(self.data, self.indexes)
 
+
 class NeuralNetwork(nn.Module):
-    def __init__(self, num_basis, two_d, num_hidden_layers=4, hidden_layer_width=64):
+    def __init__(self, num_basis, two_d, num_hidden_layers=3, hidden_layer_width=64):
         super().__init__()
         input_dim = 2 if two_d else 3
         self.num_basis = num_basis
+        activation = nn.ELU #nn.Tanh
         layers = [nn.Linear(input_dim, hidden_layer_width),
-                  nn.Tanh()]
+                  activation()]
         for _ in range(num_hidden_layers):
             layers.append(nn.Linear(hidden_layer_width, hidden_layer_width))
-            layers.append(nn.Tanh())
+            layers.append(activation())
         
         layers.append(nn.Linear(hidden_layer_width, num_basis*2))
         self.linear_relu_stack = nn.Sequential(*layers)
@@ -270,7 +272,7 @@ def get_pde_loss(data,
 
     pde = linear_pde_combine-f
     pde = torch.squeeze(pde, dim=1)
-    pde_loss = torch.sum(torch.abs(pde))
+    pde_loss = torch.sum(torch.abs(pde)**2)
     return pde_loss, u_total, u_scatter_complex_combine, refractive_index, w
 
 def average_gradients(model):
