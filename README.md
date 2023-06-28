@@ -107,8 +107,7 @@ Run the following commands to use the conda environment and start an interactive
 ```
 module load python
 conda activate PINN
-salloc -N 1 --time=120 -C gpu -A m3562_g --qos=interactive --ntasks-per-gpu=1 --cpus
--per-task=32 -n 4
+salloc -N 1 --time=120 -C gpu -A m3562_g --qos=interactive --ntasks-per-gpu=1 --cpus-per-task=32 -n 4
 ```
 
 Check SLURM_NTASKS:
@@ -214,3 +213,22 @@ https://pytorch.org/tutorials/intermediate/ddp_series_multinode.html
 Mie scattering:
 https://en.wikipedia.org/wiki/Mie_scattering
 https://optics.ansys.com/hc/en-us/articles/360042703433-Mie-scattering-FDTD-
+
+SIREN website:
+https://www.vincentsitzmann.com/siren/
+
+Implicit Neural Representations with Periodic Activation Functions:
+https://arxiv.org/abs/2006.09661
+
+Implicit Neural Representations Resources:
+https://github.com/vsitzmann/awesome-implicit-representations
+
+Neural process:
+https://arxiv.org/abs/1807.01622
+
+Helmhotz equation:
+https://en.wikipedia.org/wiki/Helmholtz_equation
+
+DeepXDE Helmhotz equation:
+https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.sound.hard.abc.html
+
