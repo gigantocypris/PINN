@@ -165,7 +165,11 @@ cd $SCRATCH/siren
 export LOGGING_ROOT=output_siren
 export EXPR_NAME=test
 
-python experiment_scripts/train_img.py --model_type=sine --experiment_name=$EXPR_NAME --num_epochs=1000 --logging_root $LOGGING_ROOT --steps_til_summary=100
+python experiment_scripts/train_img.py --model_type=sine --experiment_name=$EXPR_NAME --num_epochs=1000 --logging_root=$LOGGING_ROOT --steps_til_summary=100
+
+Running the Helmholtz equation with single point source:
+
+python experiment_scripts/train_helmholtz.py --experiment_name=$EXPR_NAME --num_epochs=1000 --logging_root=$LOGGING_ROOT --epochs_til_ckpt=100 --steps_til_summary=100
 ```
 
 Launch Tensorboard to view results:
