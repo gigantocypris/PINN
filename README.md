@@ -88,7 +88,13 @@ Install the other pip dependencies:
 ```
 python -m pip install -r requirements.txt
 ```
-
+### Additions to the install to get SIREN code to run
+python -m pip install scikit-image
+python -m pip install scikit-video
+python -m pip install opencv-python
+python -m pip install cmapy
+python -m pip install tqdm
+python -m pip install ConfigArgParse
 ## Setup on Swarthmore server
 
 ```
@@ -148,6 +154,30 @@ sbatch $SCRATCH/PINN/slurm_train.sh
 ```
 Submitted batch job 10212188
 
+
+## Running SIREN on NERSC
+```
+module load python
+conda activate PINN
+salloc -N 1 --time=120 -C gpu -A m3562_g --qos=interactive --ntasks-per-node=4 --gpus-per-node=4
+cd $SCRATCH/siren
+
+export LOGGING_ROOT=output_siren
+export EXPR_NAME=test
+
+python experiment_scripts/train_img.py --model_type=sine --experiment_name=$EXPR_NAME --num_epochs=1000 --logging_root $LOGGING_ROOT --steps_til_summary=100
+```
+
+Launch Tensorboard to view results:
+```
+tensorboard --logdir $LOGGING_ROOT/$EXPR_NAME
+```
+
+If port is already in use, kill the process:
+```
+lsof -i:6006
+kill -9 <PID>
+```
 
 ## Resources
 
