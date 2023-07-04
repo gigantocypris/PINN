@@ -49,39 +49,43 @@ class SineLayer(nn.Module):
 
 
 class Siren(nn.Module):
-    def __init__(self, in_features, hidden_features, hidden_layers, out_features, outermost_linear=False,
-                 first_omega_0=30, hidden_omega_0=30.):
+    def __init__(self, num_basis, two_d, num_hidden_layers=3, hidden_layer_width=64, outermost_linear=False,
+                 first_omega_0=5.0, hidden_omega_0=5.0):
         super().__init__()
 
+        in_features = 2 if two_d else 3
+        out_features = num_basis*2
+        self.num_basis = num_basis
         self.net = []
-        self.net.append(SineLayer(in_features, hidden_features,
+        self.net.append(SineLayer(in_features, hidden_layer_width,
                                   is_first=True, omega_0=first_omega_0))
 
-        for i in range(hidden_layers):
-            self.net.append(SineLayer(hidden_features, hidden_features,
+        for i in range(num_hidden_layers):
+            self.net.append(SineLayer(hidden_layer_width, hidden_layer_width,
                                       is_first=False, omega_0=hidden_omega_0))
 
         if outermost_linear:
-            final_linear = nn.Linear(hidden_features, out_features)
+            final_linear = nn.Linear(hidden_layer_width, out_features)
 
             with torch.no_grad():
-                final_linear.weight.uniform_(-np.sqrt(6 / hidden_features) / hidden_omega_0,
-                                              np.sqrt(6 / hidden_features) / hidden_omega_0)
+                final_linear.weight.uniform_(-np.sqrt(6 / hidden_layer_width) / hidden_omega_0,
+                                              np.sqrt(6 / hidden_layer_width) / hidden_omega_0)
 
             self.net.append(final_linear)
         else:
-            self.net.append(SineLayer(hidden_features, out_features,
+            self.net.append(SineLayer(hidden_layer_width, out_features,
                                       is_first=False, omega_0=hidden_omega_0))
 
         self.net = nn.Sequential(*self.net)
 
     def forward(self, coords):
-        coords = coords.clone().detach().requires_grad_(True) # allows to take derivative w.r.t. input
+        # coords = coords.clone().detach().requires_grad_(True) # allows to take derivative w.r.t. input
         output = self.net(coords)
-        return output, coords
+        output = torch.reshape(output, (-1,self.num_basis,2)) # last dimension is the real and imaginary parts
+        return output
 
     def forward_with_activations(self, coords, retain_grad=False):
-        '''Returns not only model output, but also intermediate activations.
+        '''Returns not only model output before final reshape, but also intermediate activations.
         Only used for visualizing activations later!'''
         activations = OrderedDict()
 

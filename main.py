@@ -28,7 +28,7 @@ import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0, create_plane_wave_2d, create_plane_wave_3d, DataPartitioner
-
+from siren import Siren
 
 
 def get_args():
@@ -41,6 +41,8 @@ def get_args():
                         help='batch size per gpu', default = 8836)  
     parser.add_argument('--nb', type=int, action='store', dest='num_basis',
                         help='number of basis functions, N in pde-cl paper', default = 200)  
+    parser.add_argument('--siren', action='store_true', dest='use_siren',
+                        help='use the siren architecture')
     parser.add_argument('--upc', action='store_true', dest='use_pde_cl', 
                         help='use the partial differential equation constrained layer') 
     parser.add_argument('-w', type=float, action='store', dest='wavelength', 
@@ -60,11 +62,11 @@ def get_args():
     
     # set the training region
     parser.add_argument('--train_x_start', action='store', dest='training_data_x_start',
-                        help='training data x start', nargs='+', default = [-3.5,-3.5])
+                        help='training data x start', nargs='+', default = [-21.0,-21.0])
     parser.add_argument('--train_x_end', action='store', dest='training_data_x_end',
-                        help='training data x end', nargs='+', default = [3.5,3.5])
+                        help='training data x end', nargs='+', default = [21.0,21.0])
     parser.add_argument('--train_x_step', action='store', dest='training_data_x_step',
-                        help='training data x step', nargs='+', default = [0.075,0.075])
+                        help='training data x step', nargs='+', default = [0.015,0.015])
     
     # set the test region
     parser.add_argument('--test_x_start', action='store', dest='test_data_x_start',
@@ -218,7 +220,10 @@ def run(rank, world_size, args,
 
     print("Using " + str(args.num_basis) + " basis functions")
 
-    model = NeuralNetwork(args.num_basis, args.two_d)
+    if args.use_siren:
+        model = Siren(args.num_basis, args.two_d)
+    else:
+        model = NeuralNetwork(args.num_basis, args.two_d)
     print(model)
 
     if args.use_dist:
@@ -332,7 +337,12 @@ def visualize(args,
     if not(args.use_pde_cl):
         args.num_basis = 1
 
-    model = NeuralNetwork(args.num_basis, args.two_d).to(device)
+    if args.use_siren:
+        model = Siren(args.num_basis, args.two_d)
+    else:
+        model = NeuralNetwork(args.num_basis, args.two_d)
+
+    model = model.to(device)
     model.load_state_dict(torch.load(args.checkpoint_path))
 
     # PDE loss function

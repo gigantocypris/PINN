@@ -135,6 +135,10 @@ python $SCRATCH/PINN/main.py --2d --epochs 500 --nb 50 --dist --upc
 python $SCRATCH/PINN/main.py --2d --epochs 2 --bs 8192 --nb 100 --dist --upc
 python $SCRATCH/PINN/main.py --2d --epochs 2 --bs 8192 --nb 50 --dist --upc
 python $SCRATCH/PINN/main.py --upc --2d --dist --epochs 2 --bs 8192
+
+python $SCRATCH/PINN/main.py --2d --dist --epochs 1000 --bs 8836 --siren --upc --nb 10
+
+python $SCRATCH/PINN/main.py --2d --dist --epochs 100 --bs 17672 --siren
 ```
 
 
@@ -266,3 +270,5 @@ https://en.wikipedia.org/wiki/Helmholtz_equation
 DeepXDE Helmhotz equation:
 https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.sound.hard.abc.html
 
+Diffraction Tomography:
+https://www.spiedigitallibrary.org/journals/Physics-informed-neural-networks-for-diffraction-tomography/volume-4/issue-06/066001/Physics-informed-neural-networks-for-diffraction-tomography/10.1117/1.AP.4.6.066001.full?SSO=1

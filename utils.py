@@ -63,7 +63,6 @@ class DataPartitioner(object):
     def use_all(self):
         return Partition(self.data, self.indexes)
 
-
 class NeuralNetwork(nn.Module):
     def __init__(self, num_basis, two_d, num_hidden_layers=3, hidden_layer_width=64):
         super().__init__()
@@ -77,10 +76,10 @@ class NeuralNetwork(nn.Module):
             layers.append(activation())
         
         layers.append(nn.Linear(hidden_layer_width, num_basis*2))
-        self.linear_relu_stack = nn.Sequential(*layers)
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x):
-        u_scatter = self.linear_relu_stack(x)
+        u_scatter = self.net(x)
         u_scatter = torch.reshape(u_scatter, (-1,self.num_basis,2)) # last dimension is the real and imaginary parts
         return u_scatter
 
