@@ -52,7 +52,7 @@ def get_args():
     parser.add_argument('--epochs', type=int, action='store', dest='epochs',
                         help='number of epochs', default = 1)
     parser.add_argument('--2d', action='store_true', dest='two_d',
-                        help='simulation in 2d as opposed to 3d')
+                        help='simulation in 2d as opposed to 3d', default = True)
     parser.add_argument('--lr', type=float, action='store', dest='learning_rate',
                         help='learning rate', default = 1e-3)
     parser.add_argument('-j', type=float, action='store', dest='jitter',
@@ -155,6 +155,7 @@ def partition_dataset(args, world_size):
     # Training data is a list of coordinates
     training_data, _ = create_data(args.training_data_x_start, args.training_data_x_end, 
                                    args.training_data_x_step, args.two_d)
+    
     training_partition = DataPartitioner(training_data, partition_sizes, shuffle=True)
 
 
