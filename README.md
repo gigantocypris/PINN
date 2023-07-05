@@ -272,3 +272,6 @@ https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.sound.h
 
 Diffraction Tomography:
 https://www.spiedigitallibrary.org/journals/Physics-informed-neural-networks-for-diffraction-tomography/volume-4/issue-06/066001/Physics-informed-neural-networks-for-diffraction-tomography/10.1117/1.AP.4.6.066001.full?SSO=1
+
+Physics-informed neural networks for diffraction tomography
+https://arxiv.org/abs/2207.14230
