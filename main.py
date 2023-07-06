@@ -52,7 +52,7 @@ def get_args():
     parser.add_argument('--epochs', type=int, action='store', dest='epochs',
                         help='number of epochs', default = 1)
     parser.add_argument('--2d', action='store_true', dest='two_d',
-                        help='simulation in 2d as opposed to 3d', default = True)
+                        help='simulation in 2d as opposed to 3d')
     parser.add_argument('--lr', type=float, action='store', dest='learning_rate',
                         help='learning rate', default = 1e-3)
     parser.add_argument('-j', type=float, action='store', dest='jitter',
