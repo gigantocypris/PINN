@@ -186,6 +186,25 @@ If port is already in use, kill the process:
 lsof -i:6006
 kill -9 <PID>
 ```
+## Running finite differences
+
+Activate the conda environment:
+```
+module load python
+conda activate PINN
+```
+
+Get a CPU interactive session on NERSC:
+```
+salloc -N 1 --time=60 -C cpu -A m3562 --qos=interactive
+```
+
+Run the code:
+```
+cd $WORKING_DIR
+python $SCRATCH/PINN/finite_differences.py
+```
+The resulting scattered field is saved in `scattered.png`.
 
 ## Resources
 

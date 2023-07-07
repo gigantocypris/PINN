@@ -4,11 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Inputs
-x_start = [-5.0,-5.0]
-x_end = [5.0,5.0]
-x_step = [0.05,0.05]
+x_start = [-7.0,-7.0]
+x_end = [7.0,7.0]
+x_step = [0.1,0.1]
 wavelength = 1.0 # wavelength in free space
-pml_grid_points = 5
+pml_grid_points = 20
 n_background = 1.33
 radius = 3.0
 
@@ -43,24 +43,27 @@ E = -(refractive_index**2-n_background**2)*k_0**2*plane_wave
 
 # Helper function for PML
 
-def e_i(i, domain_size_i, pml_grid_points, a_0=5):
+def e_i(i, domain_size_i, pml_grid_points, a_0=1):
+    """
+    sigma in this code = sigma_paper/omega
+    """
     if i < pml_grid_points or i > domain_size_i-pml_grid_points-1:
-        dist_to_edge = min(i,domain_size_i-i)
+        dist_to_edge = min(i,domain_size_i-1-i)
     else:
         dist_to_edge = 0
     sigma = a_0*(dist_to_edge/pml_grid_points)**2
     
     e = 1-1j*sigma
 
-    d_dist_d_x = 0
+    d_dist_squared_d_x = 0
     if i < pml_grid_points:
-        d_dist_d_x = 2*i
+        d_dist_squared_d_x = 2*i
     elif i > domain_size_i-pml_grid_points-1:
-        d_dist_d_x = -2*(domain_size_i-i-1)
+        d_dist_squared_d_x = -2*(domain_size_i-i-1)
 
     coeff = -1j*a_0/pml_grid_points**2
     
-    return e, coeff, d_dist_d_x
+    return e, coeff, d_dist_squared_d_x
 
 # Construct finite difference matrix A
 A = np.zeros([domain_size_x * domain_size_y, domain_size_x * domain_size_y], dtype=np.complex128)
@@ -71,27 +74,27 @@ for i in range(0, domain_size_x):
 
         if i < pml_grid_points or i > domain_size_x - pml_grid_points - 1 or j < pml_grid_points or j > domain_size_y - pml_grid_points - 1:
             # PML region
-            e_x, coeff_x, d_dist_d_x  = e_i(i, domain_size_x, pml_grid_points)
-            e_y, coeff_y, d_dist_d_y = e_i(j, domain_size_y, pml_grid_points)
+            e_x, coeff_x, d_dist_squared_d_x  = e_i(i, domain_size_x, pml_grid_points)
+            e_y, coeff_y, d_dist_squared_d_y = e_i(j, domain_size_y, pml_grid_points)
             A[n, n] = (e_y/e_x)*(-2 / dx**2) - (e_x/e_y) * (2 / dy**2) + e_x*e_y*k_0**2 * refractive_index_n**2
             
             try:
-                A[n, (i - 1) * domain_size_y + j] = (e_y/e_x) * (1 / dx**2) - e_y*coeff_x*d_dist_d_x/(-e_x**2) * (1 / 2*dx)
+                A[n, (i - 1) * domain_size_y + j] = (e_y/e_x) * (1 / dx**2) - e_y*coeff_x*d_dist_squared_d_x/(-e_x**2) * (1 / 2*dx)
             except IndexError:
                 pass
 
             try:
-                A[n, (i + 1) * domain_size_y + j] = (e_y/e_x) * (1 / dx**2) + e_y*coeff_x*d_dist_d_x/(-e_x**2) * (1 / 2*dx)
+                A[n, (i + 1) * domain_size_y + j] = (e_y/e_x) * (1 / dx**2) + e_y*coeff_x*d_dist_squared_d_x/(-e_x**2) * (1 / 2*dx)
             except IndexError:
                 pass
 
             try:
-                A[n, i * domain_size_y + (j - 1)] = (e_x/e_y) * (1 / dy**2) - e_x*coeff_y*d_dist_d_y/(-e_y**2) * (1 / 2*dy)
+                A[n, i * domain_size_y + (j - 1)] = (e_x/e_y) * (1 / dy**2) - e_x*coeff_y*d_dist_squared_d_y/(-e_y**2) * (1 / 2*dy)
             except IndexError:
                 pass
 
             try:
-                A[n, i * domain_size_y + (j + 1)] = (e_x/e_y) * (1 / dy**2) + e_x*coeff_y*d_dist_d_y/(-e_y**2) * (1 / 2*dy)
+                A[n, i * domain_size_y + (j + 1)] = (e_x/e_y) * (1 / dy**2) + e_x*coeff_y*d_dist_squared_d_y/(-e_y**2) * (1 / 2*dy)
             except IndexError:
                 pass
 
