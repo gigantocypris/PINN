@@ -143,7 +143,7 @@ python $SCRATCH/PINN/main.py --2d --dist --epochs 100 --bs 17672 --siren
 
 Debugging for adding the PML:
 ```
-python $SCRATCH/PINN/main.py --2d --epochs 100
+python $SCRATCH/PINN/main.py --2d --epochs 100 --bs 100
 ```
 
 ## How to run the SLURM script on NERSC

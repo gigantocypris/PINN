@@ -195,8 +195,8 @@ def run(rank, world_size, args,
     train_set = torch.utils.data.DataLoader(training_partition,
                                             batch_size=args.batch_size,
                                             shuffle=True)
-    if args.batch_size < args.num_basis:
-        if args.use_dist and args.use_pde_cl:
+    if args.batch_size < args.num_basis and args.use_pde_cl:
+        if args.use_dist:
             training_2_partition = training_2_partition.use_all()
         else:
             training_2_partition = training_2_partition.use(get_rank(args.use_dist))

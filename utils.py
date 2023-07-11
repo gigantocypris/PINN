@@ -136,7 +136,7 @@ def create_plane_wave_2d(data,
 
 # Helper function for PML
 
-def e_i(i, domain_size_i, L_pml, a_0=0.25):
+def get_e_i(i, domain_size_i, L_pml, a_0=0.25):
     """
     sigma in this code = sigma_siren_paper/omega
     domain_size_i and L_pml are in the same units
@@ -159,6 +159,28 @@ def e_i(i, domain_size_i, L_pml, a_0=0.25):
     
     return e, coeff, d_dist_squared_d_x
 
+def get_e_i_batched(i_vec, domain_size_i, L_pml, a_0=0.25):
+    """
+    sigma in this code = sigma_siren_paper/omega
+    domain_size_i and L_pml are in the same units
+    """
+
+    dist_to_edge = torch.zeros_like(i_vec)
+    dist_to_edge[torch.where(i_vec < L_pml)]=i_vec[torch.where(i_vec < L_pml)]
+    dist_to_edge[torch.where(i_vec > domain_size_i-L_pml)]=domain_size_i-i_vec[torch.where(i_vec > domain_size_i-L_pml)]
+
+    sigma = a_0*(dist_to_edge/L_pml)**2
+    
+    e = 1-1j*sigma
+
+    d_dist_squared_d_x = torch.zeros_like(i_vec)
+    d_dist_squared_d_x[torch.where(i_vec < L_pml)]=2*i_vec[torch.where(i_vec < L_pml)]
+    d_dist_squared_d_x[torch.where(i_vec > domain_size_i-L_pml)]=-2*domain_size_i+2*i_vec[torch.where(i_vec > domain_size_i-L_pml)]   
+
+    coeff = -1j*a_0/L_pml**2
+
+    return e, coeff, d_dist_squared_d_x
+
 def transform_linear_pde(data, 
                          k0,
                          n_background,
@@ -166,6 +188,11 @@ def transform_linear_pde(data,
                          model,
                          two_d,
                          device,
+                         domain_size_x=14,
+                         domain_size_z=14,
+                         L_pml_x=2,
+                         L_pml_z=2,
+                         a_0=0.25,
                          use_vmap=True,
                         ):
     '''Get the right hand side of the PDE (del**2 + n**2*k0**2)*u_scatter = -(n**2-n_background**2)*k0**2*u_in))'''
@@ -179,13 +206,11 @@ def transform_linear_pde(data,
             hess.append(hess_i)
         # Concatenate the outputs to form a single tensor
         hess = torch.stack(hess, dim=0) 
-    breakpoint()
 
     # get the Jacobian for computing the right hand side of the PDE with PML boundary conditions
     # Right hand side of PDE with the PML boundary is (left hand side is unchanged): 
     # (d/dx eps_y/eps_x d/dx)(u_scatter) + (d/dy eps_x/eps_y d/dy)(u_scatter) + eps_x*eps_y*n**2*k0**2*u_scatter
     jacobian_fn = torch.func.jacfwd(model, argnums=0)
-    use_vmap = False
     if use_vmap:
         jacobian = torch.vmap(jacobian_fn,in_dims=(0))(data) # jacobian
     else:
@@ -196,14 +221,6 @@ def transform_linear_pde(data,
         # Concatenate the outputs to form a single tensor
         jacobian = torch.stack(jacobian, dim=0) 
     
-    breakpoint()
-    jacobian_func = torch.func.jacrev(model, argnums=0)
-    jacobian = jacobian_func(data)
-
-    jacobian = torch.func.jacrev(model, argnums=0)(data)
-    hess_2 = torch.func.jacfwd(jacobian_func)(data)
-
-    breakpoint()
     du_scatter_x = torch.squeeze(jacobian[:,:,:,:,0], dim=1)
     if two_d:
         du_scatter_z = torch.squeeze(jacobian[:,:,:,:,1], dim=1)
@@ -216,15 +233,12 @@ def transform_linear_pde(data,
         du_scatter_y_complex = du_scatter_y[:,:,0]+1j*du_scatter_y[:,:,1]
     du_scatter_z_complex = du_scatter_z[:,:,0]+1j*du_scatter_z[:,:,1]
 
-    domain_size_x = 14
-    L_pml_x = 2
-
-    domain_size_y = 14
-    L_pml_y = 2
-
-    e_x, coeff_x, d_dist_squared_d_x = e_i(data_x, domain_size_x, L_pml_x, a_0=0.25)
-    e_y, coeff_y, d_dist_squared_d_y = e_i(data_y, domain_size_y, L_pml_y, a_0=0.25)
-    breakpoint()
+    e_x, coeff_x, d_dist_squared_d_x = get_e_i_batched(data[:,0], domain_size_x, L_pml_x, a_0=a_0)
+    e_z, coeff_z, d_dist_squared_d_z = get_e_i_batched(data[:,1], domain_size_z, L_pml_z, a_0=a_0)
+    e_x = torch.unsqueeze(e_x,dim=1)
+    e_z = torch.unsqueeze(e_z,dim=1)    
+    d_dist_squared_d_x = torch.unsqueeze(d_dist_squared_d_x,dim=1)
+    d_dist_squared_d_z = torch.unsqueeze(d_dist_squared_d_z,dim=1)
 
     refractive_index = evalulate_refractive_index(data, n_background) 
     
@@ -244,12 +258,11 @@ def transform_linear_pde(data,
 
     if two_d:
         # linear_pde = du_scatter_xx_complex+du_scatter_zz_complex+k0**2*torch.unsqueeze(refractive_index,dim=1)**2*u_scatter_complex
-        linear_pde = (-1)*e_y*du_scatter_x_complex*(e_x)**(-2)*coeff_x*d_dist_squared_d_x + \
-                     (e_y/e_x) * (du_scatter_xx_complex) + \
-                     (-1)*e_x*du_scatter_y_complex*(e_y)**(-2)*coeff_y*d_dist_squared_d_y + \
-                     (e_x/e_y) * (du_scatter_zz_complex) + \
-                     e_x*e_y*k0**2*torch.unsqueeze(refractive_index,dim=1)**2*u_scatter_complex
-
+        linear_pde = (-1)*e_z*du_scatter_x_complex*(e_x)**(-2)*coeff_x*d_dist_squared_d_x + \
+                     (e_z/e_x) * (du_scatter_xx_complex) + \
+                     (-1)*e_x*du_scatter_z_complex*(e_z)**(-2)*coeff_z*d_dist_squared_d_z + \
+                     (e_x/e_z) * (du_scatter_zz_complex) + \
+                     e_x*e_z*k0**2*torch.unsqueeze(refractive_index,dim=1)**2*u_scatter_complex
     else:
         linear_pde = du_scatter_xx_complex+du_scatter_yy_complex+du_scatter_zz_complex+k0**2*torch.unsqueeze(refractive_index,dim=1)**2*u_scatter_complex
         # boundary condition not implemented ERROR
@@ -379,13 +392,13 @@ def train(dataloader,
     for data in dataloader:
         # data = Variable(data)
         data = data.to(device)
-        # rand_1 = jitter*(torch.rand(data.shape, dtype=dtype, device=device) - 0.5)
-        rand_1 = jitter*torch.randn(data.shape, dtype=dtype, device=device)
+        rand_1 = jitter*(torch.rand(data.shape, dtype=dtype, device=device) - 0.5)
+        # rand_1 = jitter*torch.randn(data.shape, dtype=dtype, device=device)
         if dataloader_2 is not None:
             data_2 = next(dataloader_2_iter)
             # data_2 = Variable(data_2)
-            # rand_2 = jitter*(torch.rand(data_2.shape, dtype=dtype, device=device) - 0.5)
-            rand_2 = jitter*torch.randn(data_2.shape, dtype=dtype, device=device)
+            rand_2 = jitter*(torch.rand(data_2.shape, dtype=dtype, device=device) - 0.5)
+            # rand_2 = jitter*torch.randn(data_2.shape, dtype=dtype, device=device)
             data_2 = data_2.to(device)
             data_2 += rand_2
         else:
