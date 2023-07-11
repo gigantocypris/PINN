@@ -4,11 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Inputs
-x_start = [-7.0,-7.0]
-x_end = [7.0,7.0]
-x_step = [0.1,0.1]
+x_start = [-10.0,-10.0]
+x_end = [10.0,10.0]
+x_step = [0.075,0.075]
 wavelength = 1.0 # wavelength in free space
-pml_grid_points = 20
+pml_grid_points = 30
 n_background = 1.33
 radius = 3.0
 
@@ -43,9 +43,9 @@ E = -(refractive_index**2-n_background**2)*k_0**2*plane_wave
 
 # Helper function for PML
 
-def e_i(i, domain_size_i, pml_grid_points, a_0=1):
+def e_i(i, domain_size_i, pml_grid_points, a_0=0.25):
     """
-    sigma in this code = sigma_paper/omega
+    sigma in this code = sigma_siren_paper/omega
     """
     if i < pml_grid_points or i > domain_size_i-pml_grid_points-1:
         dist_to_edge = min(i,domain_size_i-1-i)

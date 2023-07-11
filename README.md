@@ -141,7 +141,10 @@ python $SCRATCH/PINN/main.py --2d --dist --epochs 1000 --bs 8836 --siren --upc -
 python $SCRATCH/PINN/main.py --2d --dist --epochs 100 --bs 17672 --siren
 ```
 
-
+Debugging for adding the PML:
+```
+python $SCRATCH/PINN/main.py --2d --epochs 100
+```
 
 ## How to run the SLURM script on NERSC
 
@@ -202,7 +205,7 @@ salloc -N 1 --time=60 -C cpu -A m3562 --qos=interactive
 Run the code:
 ```
 cd $WORKING_DIR
-python $SCRATCH/PINN/finite_differences.py
+python $SCRATCH/PINN/finite_difference.py
 ```
 The resulting scattered field is saved in `scattered.png`.
 
