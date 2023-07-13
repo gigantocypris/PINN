@@ -380,7 +380,6 @@ def train(dataloader,
           dtype,
           jitter,
           device,
-          use_dist
           ):
     
     """Train the model for one epoch"""
@@ -416,8 +415,8 @@ def train(dataloader,
         # Backpropagation
         optimizer.zero_grad()
         pde_loss.backward()
-        if use_dist:
-            average_gradients(model)
+
+        average_gradients(model)
         torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
         optimizer.step()
         total_examples_finished += len(data)
