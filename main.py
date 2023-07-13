@@ -56,7 +56,7 @@ def get_args():
     parser.add_argument('--lr', type=float, action='store', dest='learning_rate',
                         help='learning rate', default = 1e-3)
     parser.add_argument('-j', type=float, action='store', dest='jitter',
-                        help='jitter for training data', default = 0.5)
+                        help='jitter for training data', default = 0.4)
     parser.add_argument('--show', action='store_true', dest='show_figures',
                         help='show figures')
     
@@ -66,17 +66,21 @@ def get_args():
     parser.add_argument('--x_end', action='store', dest='data_x_end',
                         help='boundary data x end', nargs='+', default = [14.0,14.0])
     
+    # set the pml thickness
+    parser.add_argument('--pml_thickness', action='store', dest='pml_thickness',
+                        help='pml thickness', nargs='+', default = [2.0,2.0])
+    
     # set the training spacing
     parser.add_argument('--train_x_step', action='store', dest='training_data_x_step',
-                        help='training data x step', nargs='+', default = [0.015,0.015])
+                        help='training data x step', nargs='+', default = [0.4,0.4])
     
     # set the test spacing
     parser.add_argument('--test_x_step', action='store', dest='test_data_x_step',
-                        help='test data x step', nargs='+', default = [0.3,0.3])   
+                        help='test data x step', nargs='+', default = [0.4,0.4])   
 
     # set the evaluation region subset spacing for evaluting w
     parser.add_argument('--eval_x_step_subset', action='store', dest='eval_data_x_step_subset',
-                        help='evaluation data x step', nargs='+', default = [0.15,0.15])  
+                        help='evaluation data x step', nargs='+', default = [0.2,0.2])  
 
     # set the evaluation region spacing for final visualization
     parser.add_argument('--eval_x_step', action='store', dest='eval_data_x_step',
@@ -158,7 +162,7 @@ def partition_dataset(args, world_size):
 
     # Test data for validation of pde loss
     # Test data is a list of coordinates
-    test_data, _ = create_data(args.test_data_x_start, args.test_data_x_end, 
+    test_data, _ = create_data(args.data_x_start, args.data_x_end, 
                                args.test_data_x_step, args.two_d)
     test_partition = DataPartitioner(test_data, partition_sizes, shuffle=True)
 
@@ -229,6 +233,10 @@ def run(rank, world_size, args,
                             device,
                             args.use_pde_cl,
                             args.two_d,
+                            args.data_x_end[0]-args.data_x_start[0],
+                            args.data_x_end[1]-args.data_x_start[1],
+                            args.pml_thickness[0],
+                            args.pml_thickness[1],
                             data_2=data_2,
                             ) 
     
@@ -291,10 +299,10 @@ def visualize(args,
     """
     device = get_device(args)
     # Solve the linear system for a subset of the points, use those weights for all points
-    eval_data_subset, _ = create_data(args.eval_data_x_start_subset, args.eval_data_x_end_subset, 
+    eval_data_subset, _ = create_data(args.data_x_start, args.data_x_end, 
                                     args.eval_data_x_step_subset, args.two_d)
     
-    eval_data, lengths = create_data(args.eval_data_x_start, args.eval_data_x_end, 
+    eval_data, lengths = create_data(args.data_x_start, args.data_x_end, 
                                      args.eval_data_x_step, args.two_d)
     eval_dataloader = DataLoader(eval_data, batch_size=args.batch_size, shuffle=False)
 
@@ -323,6 +331,10 @@ def visualize(args,
                             device,
                             args.use_pde_cl,
                             args.two_d,
+                            args.data_x_end[0]-args.data_x_start[0],
+                            args.data_x_end[1]-args.data_x_start[1],
+                            args.pml_thickness[0],
+                            args.pml_thickness[1],
                             data_2=data_2,
                             w=w,
                             ) 
