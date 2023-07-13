@@ -2,33 +2,26 @@
 This must be run in the shell/SLURM before running this script:
 For NERSC:
 export MASTER_ADDR=$(hostname)
-For interactive session:
 export SLURM_NTASKS=4
 
 For other servers:
 export MASTER_ADDR=localhost
-
-for default operation without distribution:
-python main.py --upc --2d
-
-for distributed operation:
-python main.py --upc --2d --dist
 """
 import os
 import numpy as np
 import time
 import argparse
-import matplotlib.pyplot as plt
 import torch
+# from torch.autograd import Variable
 
 from torch.utils.data import DataLoader
-import torch.distributed as dist
 import torch.multiprocessing as mp
 
-from torch.nn.parallel import DistributedDataParallel as DDP
-
-from utils import create_data, NeuralNetwork, get_pde_loss, train, test, get_k0, create_plane_wave_2d, create_plane_wave_3d, DataPartitioner
-from siren import Siren
+from utils.physics import get_pde_loss, get_k0, create_plane_wave_2d, create_plane_wave_3d
+from utils.visualize import plot_all
+from utils.dataset import get_train_test_sets, partition_dataset, create_data
+from utils.distributed import setup, get_rank, cleanup, average_gradients, get_device
+from models import Siren, NeuralNetwork
 
 
 def get_args():
@@ -57,8 +50,6 @@ def get_args():
                         help='learning rate', default = 1e-3)
     parser.add_argument('-j', type=float, action='store', dest='jitter',
                         help='jitter for training data', default = 0.4)
-    parser.add_argument('--show', action='store_true', dest='show_figures',
-                        help='show figures')
     
     # set the region
     parser.add_argument('--x_start', action='store', dest='data_x_start',
@@ -94,114 +85,14 @@ def get_args():
     args = parser.parse_args()
     return args
 
-
-def setup(rank, world_size, fn, args, 
-          training_partition, training_2_partition, test_partition,
-          backend='nccl'):
-    os.environ['MASTER_PORT'] = '29500'
-
-    # Get the SLURM_PROCID for the current process
-    # proc_id = int(os.environ['SLURM_PROCID'])
-
-    # print("Hello from " + str(proc_id))
-    # print(get_rank())
-
-    # initialize the process group
-    dist.init_process_group(backend, rank=rank, world_size=world_size)
-    fn(rank,world_size, args,
-       training_partition, training_2_partition, test_partition) # this will be the run function
-
-
-
-def cleanup():
-    dist.destroy_process_group()
-
-def get_device(args, force_cpu=False):
-    """Get device for non-distributed training"""
-    # Get cpu, gpu, or mps device for training.
-    device = torch.device("cuda" 
-                        if torch.cuda.is_available() 
-                        else "cpu")
-    if force_cpu:
-        device = torch.device("cpu")
-
-    print("Using " + str(device) + " device")
-    return device
-
-def get_rank():
-    return dist.get_rank()
-
-
-def partition_dataset(args, world_size):
-    """
-    Creating and partitioning the dataset
-    size is the world size (number of ranks)
-    """
-
-    partition_sizes = [1.0 / world_size for _ in range(world_size)]
-
-    # Create full dataset
-
-    # Training data to compute weights w
-    # Training data is a list of coordinates
-    training_data, _ = create_data(args.data_x_start, args.data_x_end, 
-                                   args.training_data_x_step, args.two_d)
-    
-    training_partition = DataPartitioner(training_data, partition_sizes, shuffle=True)
-
-
-    # Training data to compute pde loss
-    # Training data is a list of coordinates
-    # This is only used if the linear system is underdetermined
-    if args.batch_size < args.num_basis and args.use_pde_cl:
-        training_data_2, _ = create_data(np.array(args.data_x_start), 
-                                         np.array(args.data_x_end), args.training_data_x_step, args.two_d)
-        training_2_partition = DataPartitioner(training_data_2, partition_sizes, shuffle=True)
-    else:
-        training_2_partition = None
-
-    # Test data for validation of pde loss
-    # Test data is a list of coordinates
-    test_data, _ = create_data(args.data_x_start, args.data_x_end, 
-                               args.test_data_x_step, args.two_d)
-    test_partition = DataPartitioner(test_data, partition_sizes, shuffle=True)
-
-
-    return training_partition, training_2_partition, test_partition
-
-
-
 def run(rank, world_size, args,
         training_partition, training_2_partition, test_partition,
         dtype = torch.float,
         ):
     
-
     print("Running on rank " + str(rank) + ". Running on rank " + str(get_rank()))
 
-    if args.use_pde_cl:
-        training_partition = training_partition.use_all()
-    else:
-        training_partition = training_partition.use(get_rank())
-    train_set = torch.utils.data.DataLoader(training_partition,
-                                            batch_size=args.batch_size,
-                                            shuffle=True)
-    if args.batch_size < args.num_basis and args.use_pde_cl:
-        training_2_partition = training_2_partition.use_all()
-        train_set_2 = torch.utils.data.DataLoader(training_2_partition,
-                                                  batch_size=args.batch_size,
-                                                  shuffle=True)
-    else:
-        train_set_2 = None
-    
-
-    if args.use_pde_cl:
-        test_partition = test_partition.use_all()
-    else:
-        test_partition = test_partition.use(get_rank())
-    test_set = torch.utils.data.DataLoader(test_partition,
-                                            batch_size=args.batch_size,
-                                            shuffle=True)
+    train_set, train_set_2, test_set = get_train_test_sets(args, training_partition, training_2_partition, test_partition)
     
     # Force num_basis = 1 if not using pde-cl
     if not(args.use_pde_cl):
@@ -217,7 +108,6 @@ def run(rank, world_size, args,
 
 
     device = torch.device(f'cuda:{rank}')
-    # device = get_device(args)
     model.to(device)
 
     if args.load_model:
@@ -225,18 +115,11 @@ def run(rank, world_size, args,
 
     # PDE loss function
     def loss_fn(data, u_scatter, data_2): 
-        return get_pde_loss(data, 
-                            args.wavelength,
-                            args.n_background,
+        return get_pde_loss(args,
+                            data, 
                             u_scatter,
                             model,
                             device,
-                            args.use_pde_cl,
-                            args.two_d,
-                            args.data_x_end[0]-args.data_x_start[0],
-                            args.data_x_end[1]-args.data_x_start[1],
-                            args.pml_thickness[0],
-                            args.pml_thickness[1],
                             data_2=data_2,
                             ) 
     
@@ -259,6 +142,79 @@ def run(rank, world_size, args,
     print("Done! Rank: " + str(rank))
 
     cleanup()
+
+def train(dataloader, 
+          dataloader_2,
+          model, 
+          loss_fn, 
+          optimizer,
+          dtype,
+          jitter,
+          device,
+          ):
+    
+    """Train the model for one epoch"""
+    if dataloader_2 is not None:
+        dataloader_2_iter = iter(dataloader_2)
+    size = len(dataloader.dataset)
+    model.train()
+    total_examples_finished = 0
+    for data in dataloader:
+        # data = Variable(data)
+        data = data.to(device)
+        rand_1 = jitter*(torch.rand(data.shape, dtype=dtype, device=device) - 0.5)
+        # rand_1 = jitter*torch.randn(data.shape, dtype=dtype, device=device)
+        if dataloader_2 is not None:
+            data_2 = next(dataloader_2_iter)
+            # data_2 = Variable(data_2)
+            rand_2 = jitter*(torch.rand(data_2.shape, dtype=dtype, device=device) - 0.5)
+            # rand_2 = jitter*torch.randn(data_2.shape, dtype=dtype, device=device)
+            data_2 = data_2.to(device)
+            data_2 += rand_2
+        else:
+            data_2 = None
+        
+        
+        data += rand_1
+        # Compute prediction error
+        u_scatter = model(data)
+        pde_loss, _, _, _, _ = loss_fn(data, 
+                                    u_scatter,
+                                    data_2.to(device) if data_2 is not None else None,
+                                   )
+        pde_loss = pde_loss/len(data)
+        # Backpropagation
+        optimizer.zero_grad()
+        pde_loss.backward()
+
+        average_gradients(model)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
+        optimizer.step()
+        total_examples_finished += len(data)
+        print(f"{device}: loss: {pde_loss.item():>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
+
+def test(dataloader, 
+         model, 
+         loss_fn, 
+         device):
+    size = len(dataloader.dataset)
+    num_batches = len(dataloader)
+    model.eval()
+    test_loss = 0
+    with torch.no_grad():
+        for data in dataloader:
+            data = data.to(device)
+            
+            u_scatter = model(data)
+            pde_loss, _, _, _, _ = loss_fn(data, 
+                                     u_scatter,
+                                     data_2=None,
+                                    )
+            test_loss += pde_loss.item()
+            
+    test_loss /= size
+    print(f"Avg test loss: {test_loss:>8f}")
+    return test_loss
 
 def evaluate(eval_data_i,
              device,
@@ -290,6 +246,8 @@ def evaluate(eval_data_i,
                                                                     w=w,
                                                                     )
     return pde_loss_i, u_total, u_scatter, refractive_index, w, u_in
+
+
 
 def visualize(args,
               ):
@@ -323,18 +281,11 @@ def visualize(args,
 
     # PDE loss function
     def loss_fn(data, u_scatter, data_2,w=None): 
-        return get_pde_loss(data, 
-                            args.wavelength,
-                            args.n_background,
+        return get_pde_loss(args,
+                            data, 
                             u_scatter,
                             model,
                             device,
-                            args.use_pde_cl,
-                            args.two_d,
-                            args.data_x_end[0]-args.data_x_start[0],
-                            args.data_x_end[1]-args.data_x_start[1],
-                            args.pml_thickness[0],
-                            args.pml_thickness[1],
                             data_2=data_2,
                             w=w,
                             ) 
@@ -403,96 +354,7 @@ def visualize(args,
     np.save("u_total_all.npy", u_total_all)
     np.save("u_in_all.npy", u_in_all)
     np.save("u_scatter_all.npy", u_scatter_all)
-
-
-    # Plot results
-    plt.figure()
-    plt.title('Test Loss')
-    for i in range(world_size):
-        test_loss_vec = torch.load("test_loss_vec_" + str(i) + ".pth")
-        plt.plot(test_loss_vec)
-    plt.savefig("test_loss.png")
-    if args.show_figures:
-        plt.show()
-
-    if not(args.two_d):
-        u_total_all = u_total_all[:,:,lengths[2]//2]
-        u_in_all = u_in_all[:,:,lengths[2]//2]
-        refractive_index_all = refractive_index_all[:,:,lengths[2]//2]
-
-    plt.figure()
-    plt.title('Refractive Index')
-    sc = plt.imshow(refractive_index_all)
-    plt.colorbar(sc)
-    plt.savefig("refractive_index.png")
-    if args.show_figures:
-        plt.show()
-
-    plt.figure()
-    plt.title('Magnitude of Total Field')
-    sc = plt.imshow(np.abs(u_total_all))
-    plt.colorbar(sc)
-    plt.savefig("u_total_magnitude.png")
-    if args.show_figures:
-        plt.show()
-
-    plt.figure()
-    plt.title('Log Magnitude of Total Field')
-    sc = plt.imshow(np.log(np.abs(u_total_all)))
-    plt.colorbar(sc)
-    plt.savefig("u_total_log_magnitude.png")
-    if args.show_figures:
-        plt.show()
-
-    plt.figure()
-    plt.title('Phase of Total Field')
-    sc = plt.imshow(np.angle(u_total_all))
-    plt.colorbar(sc)
-    plt.savefig("u_total_phase.png")
-    if args.show_figures:
-        plt.show()
-
-    plt.figure()
-    plt.title('Magnitude of Scattered Field')
-    sc = plt.imshow(np.abs(u_scatter_all))
-    plt.colorbar(sc)
-    plt.savefig("u_scatter_magnitude.png")
-    if args.show_figures:
-        plt.show()
-
-    plt.figure()
-    plt.title('Log Magnitude of Scattered Field')
-    sc = plt.imshow(np.log(np.abs(u_scatter_all)))
-    plt.colorbar(sc)
-    plt.savefig("u_scatter_log_magnitude.png")
-    if args.show_figures:
-        plt.show()
-
-    plt.figure()
-    plt.title('Phase of Scattered Field')
-    sc = plt.imshow(np.angle(u_scatter_all))
-    plt.colorbar(sc)
-    plt.savefig("u_scatter_phase.png")
-    if args.show_figures:
-        plt.show()
-
-    plt.figure()
-    plt.title('Magnitude Input Wave')
-    sc = plt.imshow(np.abs(u_in_all))
-    plt.colorbar(sc)
-    plt.savefig("u_in_magnitude.png")
-    if args.show_figures:
-        plt.show()
-
-    plt.figure()
-    plt.title('Phase Input Wave')
-    sc = plt.imshow(np.angle(u_in_all))
-    plt.colorbar(sc)
-    plt.savefig("u_in_phase.png")
-    if args.show_figures:
-        plt.show()
-
-
+    plot_all(args, world_size, lengths, u_total_all, u_scatter_all, u_in_all, refractive_index_all)
 
 
 if __name__=='__main__':
@@ -520,12 +382,6 @@ if __name__=='__main__':
     
     for p in processes:
         p.join()
-
-
-    # rank = 0
-    # run(rank, world_size, args,
-    #     training_partition, training_2_partition, test_partition,
-    #     )
         
     visualize(args)
     end = time.time()

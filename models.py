@@ -1,8 +1,5 @@
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
-
-from torchvision.transforms import Resize, Compose, ToTensor, Normalize
 import numpy as np
 from collections import OrderedDict
 
@@ -112,3 +109,23 @@ class Siren(nn.Module):
             activation_count += 1
 
         return activations
+
+class NeuralNetwork(nn.Module):
+    def __init__(self, num_basis, two_d, num_hidden_layers=3, hidden_layer_width=64):
+        super().__init__()
+        input_dim = 2 if two_d else 3
+        self.num_basis = num_basis
+        activation = nn.ELU #nn.Tanh
+        layers = [nn.Linear(input_dim, hidden_layer_width),
+                  activation()]
+        for _ in range(num_hidden_layers):
+            layers.append(nn.Linear(hidden_layer_width, hidden_layer_width))
+            layers.append(activation())
+        
+        layers.append(nn.Linear(hidden_layer_width, num_basis*2))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x):
+        u_scatter = self.net(x)
+        u_scatter = torch.reshape(u_scatter, (-1,self.num_basis,2)) # last dimension is the real and imaginary parts
+        return u_scatter

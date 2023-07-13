@@ -1,87 +1,5 @@
-"""Tests for AoC 1, 2022: Calorie Counting."""
-
 import numpy as np
 import torch
-from torch import nn
-from random import Random
-from torch.autograd import Variable
-import torch.distributed as dist
-
-
-def create_data(min_vals, max_vals, spacings, two_d):
-    """Create a list of coordinates from a grid"""
-    data = []
-    lengths = []
-    for i in range(len(spacings)):
-        data_i = torch.arange(min_vals[i],max_vals[i],spacings[i])
-        data.append(data_i)
-        lengths.append(len(data_i))
-    if two_d:
-        data_xm, data_ym = torch.meshgrid(data[0], data[1], indexing='ij')
-        data = torch.stack((data_xm, data_ym), dim=2)
-        data = torch.reshape(data, (-1,2))
-    else:
-        data_xm, data_ym, data_zm = torch.meshgrid(data[0], data[1], data[2], indexing='ij')
-        data = torch.stack((data_xm, data_ym, data_zm), dim=3)
-        data = torch.reshape(data, (-1,3))
-    return data, lengths
-
-class Partition(object):
-    """Dataset partitioning helper"""
-    def __init__(self, data, index):
-        self.data = data
-        self.index = index
-
-    def __len__(self):
-        return len(self.index)
-    
-    def __getitem__(self,index):
-        data_idx = self.index[index]
-        return self.data[data_idx]
-
-class DataPartitioner(object):
-    """Partitions a dataset into different chunks"""
-    def __init__(self, data, sizes=[0.7, 0.2, 0.1], seed=1234, shuffle=True):
-        self.data = data
-        self.partitions = []
-        rng = Random()
-        rng.seed(seed)
-        data_len = len(data)
-        indexes = [x for x in range(0, data_len)]
-        if shuffle:
-            rng.shuffle(indexes)
-        self.indexes = indexes
-
-        for ind,frac in enumerate(sizes):
-            part_len = int(frac*data_len)
-            self.partitions.append(indexes[0:part_len])
-            indexes = indexes[part_len:]
-        
-
-    def use(self, partition):
-        return Partition(self.data, self.partitions[partition])
-    def use_all(self):
-        return Partition(self.data, self.indexes)
-
-class NeuralNetwork(nn.Module):
-    def __init__(self, num_basis, two_d, num_hidden_layers=3, hidden_layer_width=64):
-        super().__init__()
-        input_dim = 2 if two_d else 3
-        self.num_basis = num_basis
-        activation = nn.ELU #nn.Tanh
-        layers = [nn.Linear(input_dim, hidden_layer_width),
-                  activation()]
-        for _ in range(num_hidden_layers):
-            layers.append(nn.Linear(hidden_layer_width, hidden_layer_width))
-            layers.append(activation())
-        
-        layers.append(nn.Linear(hidden_layer_width, num_basis*2))
-        self.net = nn.Sequential(*layers)
-
-    def forward(self, x):
-        u_scatter = self.net(x)
-        u_scatter = torch.reshape(u_scatter, (-1,self.num_basis,2)) # last dimension is the real and imaginary parts
-        return u_scatter
 
 def evalulate_refractive_index(data,
                                n_background, 
@@ -265,88 +183,73 @@ def transform_linear_pde(data,
                      e_x*e_z*k0**2*torch.unsqueeze(refractive_index,dim=1)**2*u_scatter_complex
     else:
         linear_pde = du_scatter_xx_complex+du_scatter_yy_complex+du_scatter_zz_complex+k0**2*torch.unsqueeze(refractive_index,dim=1)**2*u_scatter_complex
-        # boundary condition not implemented ERROR
+        raise NotImplementedError('Boundary condition for 3 dimensions not implemented')
     return linear_pde, refractive_index, u_scatter_complex
 
-def transform_affine_pde(wavelength,
+def transform_affine_pde(args,
                          data,
                          k0,
-                         n_background,
                          u_scatter,
                          model,
                          device,
-                         two_d,
-                         domain_size_x,
-                         domain_size_z,
-                         L_pml_x,
-                         L_pml_z,
                          ):
     '''Get the right and left hand side of the PDE (del**2 + n**2*k0**2)*u_scatter = -(n**2-n_background**2)*k0**2*u_in))'''
 
+    domain_size_x = args.data_x_end[0]-args.data_x_start[0]
+    domain_size_z = args.data_x_end[1]-args.data_x_start[1]
+    L_pml_x = args.pml_thickness[0]
+    L_pml_z = args.pml_thickness[1]
     # get the right hand side of the PDE
     linear_pde, refractive_index, u_scatter_complex = transform_linear_pde(data,
                                                                            k0,
-                                                                           n_background,
+                                                                           args.n_background,
                                                                            u_scatter,
                                                                            model,
-                                                                           two_d,
+                                                                           args.two_d,
                                                                            device,
                                                                            domain_size_x,
                                                                            domain_size_z,
                                                                            L_pml_x,
                                                                            L_pml_z,
                                                                           )
-    if two_d:
+    if args.two_d:
         u_in = create_plane_wave_2d(data, 
-                                    wavelength,
-                                    n_background,
+                                    args.wavelength,
+                                    args.n_background,
                                     device)
     else:
         u_in = create_plane_wave_3d(data, 
-                                    wavelength,
-                                    n_background,
+                                    args.wavelength,
+                                    args.n_background,
                                     device)
     
     # get the left hand side of the PDE
-    f = -k0**2*(refractive_index**2 - n_background**2)*u_in
+    f = -k0**2*(refractive_index**2 - args.n_background**2)*u_in
     f = torch.unsqueeze(f,dim=1)
     return linear_pde, f, u_scatter_complex, u_in, refractive_index
 
-def get_pde_loss(data, 
-                 wavelength,
-                 n_background,
+def get_pde_loss(args,
+                 data, 
                  u_scatter,
                  model,
                  device,
-                 use_pde_cl,
-                 two_d,
-                 domain_size_x,
-                 domain_size_z,
-                 L_pml_x,
-                 L_pml_z,
                  data_2=None,
                  w=None,
                  ):
 
-    k0 = get_k0(wavelength)
+    k0 = get_k0(args.wavelength)
 
     linear_pde, f, u_scatter_complex, u_in, refractive_index = \
-    transform_affine_pde(wavelength,
+    transform_affine_pde(args,
                         data,
                         k0,
-                        n_background,
                         u_scatter,
                         model,
                         device,
-                        two_d,
-                        domain_size_x,
-                        domain_size_z,
-                        L_pml_x,
-                        L_pml_z,
                         )
 
 
-    if use_pde_cl:
+    if args.use_pde_cl:
         if w is None:
             w = torch.linalg.lstsq(linear_pde, f, driver='gels').solution
         linear_pde_combine = torch.matmul(linear_pde,w)
@@ -364,18 +267,11 @@ def get_pde_loss(data,
     # if underdetermined, use the second dataset to get the loss
     if data_2 is not None:
         linear_pde, f, _, _, _ = \
-        transform_affine_pde(wavelength,
-                            data_2,
+        transform_affine_pde(data_2,
                             k0,
-                            n_background,
                             u_scatter,
                             model,
                             device,
-                            two_d,
-                            domain_size_x,
-                            domain_size_z,
-                            L_pml_x,
-                            L_pml_z,
                             )
         linear_pde_combine = torch.matmul(linear_pde,w)
 
@@ -383,85 +279,3 @@ def get_pde_loss(data,
     pde = torch.squeeze(pde, dim=1)
     pde_loss = torch.sum(torch.abs(pde)**2)
     return pde_loss, u_total, u_scatter_complex_combine, refractive_index, w
-
-def average_gradients(model):
-    """Gradient averaging."""
-    world_size = dist.get_world_size()
-    for param in model.parameters():
-        if type(param) is torch.Tensor:
-            dist.all_reduce(param.grad.data, op=dist.reduce_op.SUM, group=0)
-            param.grad.data /= world_size
-
-def train(dataloader, 
-          dataloader_2,
-          model, 
-          loss_fn, 
-          optimizer,
-          dtype,
-          jitter,
-          device,
-          ):
-    
-    """Train the model for one epoch"""
-    if dataloader_2 is not None:
-        dataloader_2_iter = iter(dataloader_2)
-    size = len(dataloader.dataset)
-    model.train()
-    total_examples_finished = 0
-    for data in dataloader:
-        # data = Variable(data)
-        data = data.to(device)
-        rand_1 = jitter*(torch.rand(data.shape, dtype=dtype, device=device) - 0.5)
-        # rand_1 = jitter*torch.randn(data.shape, dtype=dtype, device=device)
-        if dataloader_2 is not None:
-            data_2 = next(dataloader_2_iter)
-            # data_2 = Variable(data_2)
-            rand_2 = jitter*(torch.rand(data_2.shape, dtype=dtype, device=device) - 0.5)
-            # rand_2 = jitter*torch.randn(data_2.shape, dtype=dtype, device=device)
-            data_2 = data_2.to(device)
-            data_2 += rand_2
-        else:
-            data_2 = None
-        
-        
-        data += rand_1
-        # Compute prediction error
-        u_scatter = model(data)
-        pde_loss, _, _, _, _ = loss_fn(data, 
-                                    u_scatter,
-                                    data_2.to(device) if data_2 is not None else None,
-                                   )
-        pde_loss = pde_loss/len(data)
-        # Backpropagation
-        optimizer.zero_grad()
-        pde_loss.backward()
-
-        average_gradients(model)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
-        optimizer.step()
-        total_examples_finished += len(data)
-        print(f"{device}: loss: {pde_loss.item():>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
-
-def test(dataloader, 
-         model, 
-         loss_fn, 
-         device):
-    size = len(dataloader.dataset)
-    num_batches = len(dataloader)
-    model.eval()
-    test_loss = 0
-    with torch.no_grad():
-        for data in dataloader:
-            data = data.to(device)
-            
-            u_scatter = model(data)
-            pde_loss, _, _, _, _ = loss_fn(data, 
-                                     u_scatter,
-                                     data_2=None,
-                                    )
-            test_loss += pde_loss.item()
-            
-    test_loss /= size
-    print(f"Avg test loss: {test_loss:>8f}")
-    return test_loss
-
