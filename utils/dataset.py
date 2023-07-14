@@ -74,7 +74,7 @@ def partition_dataset(args, world_size):
     # Training data is a list of coordinates
     training_data, _ = create_data(args.data_x_start, args.data_x_end, 
                                    args.training_data_x_step, args.two_d)
-    
+
     training_partition = DataPartitioner(training_data, partition_sizes, shuffle=True)
 
 

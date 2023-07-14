@@ -31,7 +31,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Get command line args')
 
     parser.add_argument('--bs', type=int, action='store', dest='batch_size',
-                        help='batch size per gpu', default = 8836)  
+                        help='batch size (per gpu with pde-cl, total without)', default = 4)  
     parser.add_argument('--nb', type=int, action='store', dest='num_basis',
                         help='number of basis functions, N in pde-cl paper', default = 200)  
     parser.add_argument('--siren', action='store_true', dest='use_siren',
@@ -49,13 +49,13 @@ def get_args():
     parser.add_argument('--lr', type=float, action='store', dest='learning_rate',
                         help='learning rate', default = 1e-3)
     parser.add_argument('-j', type=float, action='store', dest='jitter',
-                        help='jitter for training data', default = 0.4)
+                        help='jitter for training data', default = 0.2)
     
     # set the region
     parser.add_argument('--x_start', action='store', dest='data_x_start',
-                        help='boundary x start', nargs='+', default = [-14.0,-14.0])
+                        help='boundary x start', nargs='+', default = [-10.0,-10.0])
     parser.add_argument('--x_end', action='store', dest='data_x_end',
-                        help='boundary data x end', nargs='+', default = [14.0,14.0])
+                        help='boundary data x end', nargs='+', default = [10.0,10.0])
     
     # set the pml thickness
     parser.add_argument('--pml_thickness', action='store', dest='pml_thickness',
@@ -63,11 +63,11 @@ def get_args():
     
     # set the training spacing
     parser.add_argument('--train_x_step', action='store', dest='training_data_x_step',
-                        help='training data x step', nargs='+', default = [0.4,0.4])
+                        help='training data x step', nargs='+', default = [0.2,0.2])
     
     # set the test spacing
     parser.add_argument('--test_x_step', action='store', dest='test_data_x_step',
-                        help='test data x step', nargs='+', default = [0.4,0.4])   
+                        help='test data x step', nargs='+', default = [0.2,0.2])   
 
     # set the evaluation region subset spacing for evaluting w
     parser.add_argument('--eval_x_step_subset', action='store', dest='eval_data_x_step_subset',
@@ -75,7 +75,7 @@ def get_args():
 
     # set the evaluation region spacing for final visualization
     parser.add_argument('--eval_x_step', action='store', dest='eval_data_x_step',
-                        help='evaluation data x step', nargs='+', default = [0.05,0.05])  
+                        help='evaluation data x step', nargs='+', default = [0.01,0.01])  
 
     parser.add_argument('--load', action='store_true', dest='load_model',
                         help='load model from model.pth')
@@ -130,14 +130,15 @@ def run(rank, world_size, args,
     test_loss_vec = []
     start = time.time()
     for t in range(args.epochs):
-        print("Epoch " + str(t+1) + "\n-------------------------------")
+        if rank == 0:
+            print("Epoch " + str(t+1) + "\n-------------------------------")
         train(train_set, train_set_2, model, loss_fn, optimizer, dtype, args.jitter, device)
         test_loss = test(test_set, model, loss_fn, device)
         test_loss_vec.append(test_loss)
         # Automatically synced here, don't need barrier
         if rank == 0:
             torch.save(model.state_dict(), args.checkpoint_path) # save model
-        print("Saved PyTorch Model State to: " + args.checkpoint_path)
+            print("Saved PyTorch Model State to: " + args.checkpoint_path)
     torch.save(test_loss_vec, "test_loss_vec_" + str(rank) + ".pth") # save test loss
     print("Done! Rank: " + str(rank))
 
@@ -162,12 +163,12 @@ def train(dataloader,
     for data in dataloader:
         # data = Variable(data)
         data = data.to(device)
-        rand_1 = jitter*(torch.rand(data.shape, dtype=dtype, device=device) - 0.5)
+        rand_1 = jitter*(2*torch.rand(data.shape, dtype=dtype, device=device) - 1.0)
         # rand_1 = jitter*torch.randn(data.shape, dtype=dtype, device=device)
         if dataloader_2 is not None:
             data_2 = next(dataloader_2_iter)
             # data_2 = Variable(data_2)
-            rand_2 = jitter*(torch.rand(data_2.shape, dtype=dtype, device=device) - 0.5)
+            rand_2 = jitter*(2*torch.rand(data_2.shape, dtype=dtype, device=device) - 1.0)
             # rand_2 = jitter*torch.randn(data_2.shape, dtype=dtype, device=device)
             data_2 = data_2.to(device)
             data_2 += rand_2
@@ -186,9 +187,9 @@ def train(dataloader,
         # Backpropagation
         optimizer.zero_grad()
         pde_loss.backward()
-
-        average_gradients(model)
         torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
+        average_gradients(model)
+        torch.distributed.barrier()
         optimizer.step()
         total_examples_finished += len(data)
         print(f"{device}: loss: {pde_loss.item():>7f}  [{total_examples_finished:>5d}/{size:>5d}]")
