@@ -157,6 +157,20 @@ python $SCRATCH/PINN/main.py --2d --epochs 100 --bs 10000 --upc --siren --nb 50 
 
 ```
 
+Show all nodes:
+```
+$(scontrol show hostnames "$SLURM_JOB_NODELIST")
+```
+
+Trying to get the Mie scattering problem to work, no PDE-CL:
+
+```
+export SLURM_NTASKS=1
+python $SCRATCH/PINN/main.py --2d --epochs 10000 --bs 160000 -j 0.025 --train_x_st
+ep 0.05 0.05
+
+```
+
 ## How to run the SLURM script on NERSC
 
 Open a Perlmutter terminal.

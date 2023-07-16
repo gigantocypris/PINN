@@ -52,29 +52,29 @@ def get_args():
                         help='jitter for training data', default = 0.2)
     
     # set the region
-    parser.add_argument('--x_start', action='store', dest='data_x_start',
+    parser.add_argument('--x_start',type=float, action='store', dest='data_x_start',
                         help='boundary x start', nargs='+', default = [-10.0,-10.0])
-    parser.add_argument('--x_end', action='store', dest='data_x_end',
+    parser.add_argument('--x_end', type=float, action='store', dest='data_x_end',
                         help='boundary data x end', nargs='+', default = [10.0,10.0])
     
     # set the pml thickness
-    parser.add_argument('--pml_thickness', action='store', dest='pml_thickness',
+    parser.add_argument('--pml_thickness', type=float, action='store', dest='pml_thickness',
                         help='pml thickness', nargs='+', default = [2.0,2.0])
     
     # set the training spacing
-    parser.add_argument('--train_x_step', action='store', dest='training_data_x_step',
+    parser.add_argument('--train_x_step', type=float, action='store', dest='training_data_x_step',
                         help='training data x step', nargs='+', default = [0.2,0.2])
     
     # set the test spacing
-    parser.add_argument('--test_x_step', action='store', dest='test_data_x_step',
+    parser.add_argument('--test_x_step', type=float, action='store', dest='test_data_x_step',
                         help='test data x step', nargs='+', default = [0.2,0.2])   
 
     # set the evaluation region subset spacing for evaluting w
-    parser.add_argument('--eval_x_step_subset', action='store', dest='eval_data_x_step_subset',
+    parser.add_argument('--eval_x_step_subset', type=float, action='store', dest='eval_data_x_step_subset',
                         help='evaluation data x step', nargs='+', default = [0.2,0.2])  
 
     # set the evaluation region spacing for final visualization
-    parser.add_argument('--eval_x_step', action='store', dest='eval_data_x_step',
+    parser.add_argument('--eval_x_step', type=float, action='store', dest='eval_data_x_step',
                         help='evaluation data x step', nargs='+', default = [0.01,0.01])  
 
     parser.add_argument('--load', action='store_true', dest='load_model',
@@ -361,7 +361,6 @@ def visualize(args,
 if __name__=='__main__':
 
     args = get_args()
-
     print(str(torch.cuda.device_count()) + " GPUs detected!")
 
     # world_size = torch.cuda.device_count()
