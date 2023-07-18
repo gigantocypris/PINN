@@ -5,9 +5,12 @@ def evalulate_refractive_index(data,
                                n_background, 
                                radius=3, # um
                               ):
-    """evalulate the refractive index of at the data points for spherical dielectric"""
-    return torch.where(torch.sum(data**2,dim=1)<radius**2, 1.88, n_background)
-    #return torch.where(torch.sum(data**2,dim=1)<radius**2, n_background, n_background)
+    """evalulate the refractive index at the data points for spherical/cylinderical dielectric"""
+    # refractive_index = torch.where(torch.sum(data**2,dim=1)<radius**2, 1.88, n_background)
+
+    dist = torch.sqrt(torch.sum(data**2,dim=1))
+    refractive_index = torch.sigmoid(2*(-dist+radius))
+    return refractive_index
 
 
 def get_k0(wavelength):

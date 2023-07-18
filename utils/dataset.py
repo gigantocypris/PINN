@@ -101,7 +101,7 @@ def get_train_test_sets(args, training_partition, training_2_partition, test_par
     if args.use_pde_cl:
         training_partition = training_partition.use_all()
     else:
-        training_partition = training_partition.use(get_rank())
+        training_partition = training_partition.use(get_rank()[0])
     train_set = torch.utils.data.DataLoader(training_partition,
                                             batch_size=args.batch_size,
                                             shuffle=True)
@@ -117,7 +117,7 @@ def get_train_test_sets(args, training_partition, training_2_partition, test_par
     if args.use_pde_cl:
         test_partition = test_partition.use_all()
     else:
-        test_partition = test_partition.use(get_rank())
+        test_partition = test_partition.use(get_rank()[0])
     test_set = torch.utils.data.DataLoader(test_partition,
                                             batch_size=args.batch_size,
                                             shuffle=True)

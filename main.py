@@ -16,6 +16,7 @@ import torch
 
 from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
+import torch.distributed as dist
 
 from utils.physics import get_pde_loss, get_k0, create_plane_wave_2d, create_plane_wave_3d
 from utils.visualize import plot_all
@@ -90,7 +91,8 @@ def run(rank, world_size, args,
         dtype = torch.float,
         ):
     
-    print("Running on rank " + str(rank) + ". Running on rank " + str(get_rank()))
+    local_rank = get_rank()[1]
+    print("Running on rank " + str(rank) + ". Running on local rank " + str(local_rank))
 
     train_set, train_set_2, test_set = get_train_test_sets(args, training_partition, training_2_partition, test_partition)
     
@@ -107,11 +109,17 @@ def run(rank, world_size, args,
     print(model)
 
 
-    device = torch.device(f'cuda:{rank}')
+    device = torch.device(f'cuda:{local_rank}')
     model.to(device)
 
     if args.load_model:
         model.load_state_dict(torch.load(args.checkpoint_path))
+    else:
+        if int(os.environ['SLURM_NTASKS'])>1:
+            # Synchronize the model parameters across all ranks
+            for param in model.parameters():
+                dist.broadcast(param.data, src=0, group = dist.new_group(list(range(world_size))))  # Broadcasting the parameters from rank 0 to all other ranks
+
 
     # PDE loss function
     def loss_fn(data, u_scatter, data_2): 
@@ -365,10 +373,10 @@ if __name__=='__main__':
 
     # world_size = torch.cuda.device_count()
     world_size = int(os.environ['SLURM_NTASKS'])
-
     print('world_size is: ' + str(world_size))
 
     training_partition, training_2_partition, test_partition = partition_dataset(args, world_size)
+
     start = time.time()
 
     processes = []

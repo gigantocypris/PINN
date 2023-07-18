@@ -166,9 +166,15 @@ Trying to get the Mie scattering problem to work, no PDE-CL:
 
 ```
 export SLURM_NTASKS=1
-python $SCRATCH/PINN/main.py --2d --epochs 10000 --bs 160000 -j 0.025 --train_x_st
-ep 0.05 0.05
+python $SCRATCH/PINN/main.py --2d --epochs 100 --bs 160000 -j 0.025 --train_x_step 0.05 0.05
+```
 
+2-node training:
+```
+salloc -N 2 --time=120 -C gpu -A m3562_g --qos=interactive
+export MASTER_ADDR=$(hostname)
+export SLURM_NTASKS=8
+srun --ntasks-per-node 4 -N 2 --gpus-per-task=1 python $SCRATCH/PINN/main.py --2d --epochs 100 --bs 160000 -j 0.025 --train_x_step 0.05 0.05
 ```
 
 ## How to run the SLURM script on NERSC
