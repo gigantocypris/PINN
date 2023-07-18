@@ -99,14 +99,17 @@ def partition_dataset(args, world_size):
 
 def get_train_test_sets(args, training_partition, training_2_partition, test_partition):
     if args.use_pde_cl:
-        training_partition = training_partition.use_all()
+        # training_partition = training_partition.use_all()
+        training_partition = training_partition.use(get_rank())
     else:
-        training_partition = training_partition.use(get_rank()[0])
+        training_partition = training_partition.use(get_rank())
+        # training_partition = training_partition.use(get_rank()[0])
     train_set = torch.utils.data.DataLoader(training_partition,
                                             batch_size=args.batch_size,
                                             shuffle=True)
     if args.batch_size < args.num_basis and args.use_pde_cl:
-        training_2_partition = training_2_partition.use_all()
+        training_2_partition = training_2_partition.use(get_rank())
+        # training_2_partition = training_2_partition.use_all()
         train_set_2 = torch.utils.data.DataLoader(training_2_partition,
                                                   batch_size=args.batch_size,
                                                   shuffle=True)
@@ -115,9 +118,11 @@ def get_train_test_sets(args, training_partition, training_2_partition, test_par
     
 
     if args.use_pde_cl:
-        test_partition = test_partition.use_all()
+        # test_partition = test_partition.use_all()
+        test_partition = test_partition.use(get_rank())
     else:
-        test_partition = test_partition.use(get_rank()[0])
+        test_partition = test_partition.use(get_rank())
+        # test_partition = test_partition.use(get_rank()[0])
     test_set = torch.utils.data.DataLoader(test_partition,
                                             batch_size=args.batch_size,
                                             shuffle=True)

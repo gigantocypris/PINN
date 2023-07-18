@@ -91,8 +91,9 @@ def run(rank, world_size, args,
         dtype = torch.float,
         ):
     
-    local_rank = get_rank()[1]
-    print("Running on rank " + str(rank) + ". Running on local rank " + str(local_rank))
+    # local_rank = get_rank()[1]
+    # print("Running on rank " + str(rank) + ". Running on local rank " + str(local_rank))
+    print("Running on rank " + str(rank) + ". Running on rank " + str(get_rank()))
 
     train_set, train_set_2, test_set = get_train_test_sets(args, training_partition, training_2_partition, test_partition)
     
@@ -108,8 +109,8 @@ def run(rank, world_size, args,
         model = NeuralNetwork(args.num_basis, args.two_d)
     print(model)
 
-
-    device = torch.device(f'cuda:{local_rank}')
+    # device = torch.device(f'cuda:{local_rank}')
+    device = torch.device(f'cuda:{rank}')
     model.to(device)
 
     if args.load_model:

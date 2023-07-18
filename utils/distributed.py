@@ -19,12 +19,14 @@ def setup(rank, world_size, fn, args,
        training_partition, training_2_partition, test_partition) # this will be the run function
 
 def get_rank():
-
+    '''
     rank = int(os.environ["SLURM_PROCID"])
     gpus_per_node = int(os.environ["SLURM_GPUS_ON_NODE"])
     local_rank = rank - gpus_per_node * (rank // gpus_per_node)
 
     return rank, local_rank
+    '''
+    return dist.get_rank()
 
 def cleanup():
     dist.destroy_process_group()

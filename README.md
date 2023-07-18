@@ -177,6 +177,60 @@ export SLURM_NTASKS=8
 srun --ntasks-per-node 4 -N 2 --gpus-per-task=1 python $SCRATCH/PINN/main.py --2d --epochs 100 --bs 160000 -j 0.025 --train_x_step 0.05 0.05
 ```
 
+```
+export MASTER_ADDR=$(hostname)
+export SLURM_NTASKS=4
+python $SCRATCH/PINN/main.py --2d --epochs 100 --bs 160000 -j 0.025 --train_x_step 0.05 0.05
+```
+Results:
+```
+Final eval pde loss is 4640.781312
+Time to train (s): 79.0293037891388
+```
+
+
+```
+export MASTER_ADDR=$(hostname)
+export SLURM_NTASKS=1
+python $SCRATCH/PINN/main.py --2d --epochs 100 --bs 160000 -j 0.025 --train_x_step 0.05 0.05
+```
+Results:
+```
+Final eval pde loss is 4640.165376
+Time to train (s): 76.92376923561096
+```
+
+Same as above with 1000 epochs:
+```
+export MASTER_ADDR=$(hostname)
+export SLURM_NTASKS=4
+python $SCRATCH/PINN/main.py --2d --epochs 1000 --bs 160000 -j 0.025 --train_x_step 0.05 0.05
+```
+Results:
+```
+Final eval pde loss is 4640.256512
+Time to train (s): 370.7292535305023
+```
+
+```
+export MASTER_ADDR=$(hostname)
+export SLURM_NTASKS=1
+python $SCRATCH/PINN/main.py --2d --epochs 1000 --bs 160000 -j 0.025 --train_x_step 0.05 0.05
+```
+Results:
+```
+Final eval pde loss is 244.715568
+Time to train (s): 625.481682062149
+```
+
+
+PDE-CL
+```
+export MASTER_ADDR=$(hostname)
+export SLURM_NTASKS=4
+python $SCRATCH/PINN/main.py --2d --upc --epochs 100 --bs 10000 --nb 10 -j 0.025 --train_x_step 0.05 0.05
+```
+
 ## How to run the SLURM script on NERSC
 
 Open a Perlmutter terminal.

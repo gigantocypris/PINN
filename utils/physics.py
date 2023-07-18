@@ -1,15 +1,17 @@
 import numpy as np
 import torch
 
-def evalulate_refractive_index(data,
+def evaluate_refractive_index(data,
                                n_background, 
+                               n_inclusion=1.88, # refractive index of the inclusion
                                radius=3, # um
+                               sharpness=9, # higher value means sharper boundary
                               ):
     """evalulate the refractive index at the data points for spherical/cylinderical dielectric"""
     # refractive_index = torch.where(torch.sum(data**2,dim=1)<radius**2, 1.88, n_background)
 
     dist = torch.sqrt(torch.sum(data**2,dim=1))
-    refractive_index = torch.sigmoid(2*(-dist+radius))
+    refractive_index = (n_inclusion-n_background)*torch.sigmoid(sharpness*(-dist+radius))+n_background
     return refractive_index
 
 
@@ -161,7 +163,7 @@ def transform_linear_pde(data,
     d_dist_squared_d_x = torch.unsqueeze(d_dist_squared_d_x,dim=1)
     d_dist_squared_d_z = torch.unsqueeze(d_dist_squared_d_z,dim=1)
 
-    refractive_index = evalulate_refractive_index(data, n_background) 
+    refractive_index = evaluate_refractive_index(data, n_background) 
     
     du_scatter_xx = torch.squeeze(hess[:,:,:,:,0,0], dim=1)
 
