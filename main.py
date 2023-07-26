@@ -137,7 +137,6 @@ def run(rank, world_size, args,
 
     # Train the PINN
     test_loss_vec = []
-    start = time.time()
     for t in range(args.epochs):
         if rank == 0:
             print("Epoch " + str(t+1) + "\n-------------------------------")

@@ -6,11 +6,15 @@ import matplotlib.pyplot as plt
 # Inputs
 x_start = [-10.0,-10.0]
 x_end = [10.0,10.0]
+# x_step = [0.15,0.15]
 x_step = [0.075,0.075]
 wavelength = 1.0 # wavelength in free space
 pml_grid_points = 30
 n_background = 1.33
+n_inclusion = 1.88
 radius = 3.0
+sharpness = 9.0
+soft_boundary = True
 
 # Calculated inputs
 k_0 = 2*np.pi/wavelength # wavenumber in free space
@@ -27,7 +31,16 @@ xm, ym = np.meshgrid(x, y, indexing='ij')
 data = np.stack([xm,ym],axis=-1) # x_size x y_size x 2
 
 # Construct the refractive index
-refractive_index = np.where(np.sum(data**2,axis=-1)<radius**2, 1.88, n_background)
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+dist = np.sqrt(np.sum(data**2,axis=-1))
+
+if soft_boundary:
+    refractive_index = (n_inclusion-n_background)*sigmoid(sharpness*(-dist+radius))+n_background # soft boundary
+else:
+    refractive_index = np.where(dist<radius, n_inclusion, n_background) # hard boundary
 
 # Construct the plane wave
 amplitude=1
@@ -132,5 +145,9 @@ plt.xlabel('x')
 plt.ylabel('y')
 plt.title('Scattered Field Distribution')
 plt.colorbar()
-plt.savefig('scattered_field.png')
-plt.show()
+plt.savefig('scattered_field_soft.png')
+
+
+plt.figure()
+plt.imshow(refractive_index)
+plt.savefig('refractive_index_soft.png')
